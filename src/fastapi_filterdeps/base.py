@@ -1,7 +1,9 @@
 import abc
 import inspect
-from typing import Type, Any
+from typing import Optional, Type, Any, Union, List, Callable
 
+
+from sqlalchemy import ColumnElement
 from sqlalchemy.orm import DeclarativeBase
 
 
@@ -13,7 +15,9 @@ class SqlFilterCriteriaBase:
     """
 
     @abc.abstractmethod
-    def build_filter(self, orm_model: type[DeclarativeBase]):
+    def build_filter(
+        self, orm_model: type[DeclarativeBase]
+    ) -> Callable[..., Optional[Union[ColumnElement, List[ColumnElement]]]]:
         """Build a filter dependency for a given ORM model.
 
         Args:
@@ -26,8 +30,8 @@ class SqlFilterCriteriaBase:
 
 
 def create_combined_filter_dependency(
-        *filter_options: SqlFilterCriteriaBase,
-        orm_model: Type[DeclarativeBase],
+    *filter_options: SqlFilterCriteriaBase,
+    orm_model: Type[DeclarativeBase],
 ):
     """Dynamically creates filter parameters and returns a FastAPI dependency.
 
@@ -70,9 +74,15 @@ def create_combined_filter_dependency(
                 raise ValueError(f"Duplicate parameter name '{param_name}' found.")
 
             # Check for duplicate aliases.
-            alias = param_object.default.alias if hasattr(param_object.default, 'alias') else param_object.name
+            alias = (
+                param_object.default.alias
+                if hasattr(param_object.default, "alias")
+                else param_object.name
+            )
             if alias in used_parameter_aliases:
-                raise ValueError(f"Duplicate alias '{alias}' found in filter parameters.")
+                raise ValueError(
+                    f"Duplicate alias '{alias}' found in filter parameters."
+                )
             used_parameter_aliases.add(alias)
 
             # Store the parameter definition for the signature.
@@ -120,7 +130,9 @@ def create_combined_filter_dependency(
     # to understand how to call the dependency, validate inputs, and generate
     # accurate OpenAPI (Swagger/Redoc) documentation.
     _combined_filter_dependency.__signature__ = new_signature
-    _combined_filter_dependency.__annotations__ = {p.name: p.annotation for p in dependency_parameters}
+    _combined_filter_dependency.__annotations__ = {
+        p.name: p.annotation for p in dependency_parameters
+    }
 
     return _combined_filter_dependency
 

@@ -89,8 +89,8 @@ class GenericStringCriteria(SqlFilterCriteriaBase):
             callable: FastAPI dependency function that returns SQLAlchemy filter condition.
 
         Raises:
-            AttributeError: If the specified field doesn't exist on the model.
-            ValueError: If the match type is invalid.
+            InvalidFieldError: If the specified field doesn't exist on the model.
+            InvalidValueError: If the match type is invalid.
         """
         self._validate_field_exists(orm_model, self.field)
         self._validate_enum_value(
@@ -208,7 +208,7 @@ class GenericStringSetCriteria(SqlFilterCriteriaBase):
             callable: FastAPI dependency function that returns SQLAlchemy filter condition.
 
         Raises:
-            AttributeError: If the specified field doesn't exist on the model.
+            InvalidFieldError: If the specified field doesn't exist on the model.
         """
         self._validate_field_exists(orm_model, self.field)
         model_field = getattr(orm_model, self.field)

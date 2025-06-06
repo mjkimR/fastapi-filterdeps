@@ -137,6 +137,9 @@ class GenericOrderCriteria(SqlFilterCriteriaBase):
 
         Returns:
             list[ColumnElement]: List of columns to use in ORDER BY clause
+
+        Raises:
+            InvalidFieldError: If the model doesn't have primary key(s)
         """
         order_by = []
 
@@ -175,8 +178,7 @@ class GenericOrderCriteria(SqlFilterCriteriaBase):
             callable: FastAPI dependency function that returns SQLAlchemy filter condition
 
         Raises:
-            AttributeError: If the specified field or partition_by fields don't exist on the model
-            ValueError: If the model doesn't have primary key(s)
+            InvalidFieldError: If the specified field or partition_by fields don't exist on the model or the model doesn't have primary key(s)
         """
         # Validate field existence
         self._validate_field_exists(orm_model, self.field)

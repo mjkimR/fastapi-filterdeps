@@ -61,7 +61,7 @@ class GenericRegexCriteria(SqlFilterCriteriaBase):
             callable: FastAPI dependency function that returns SQLAlchemy filter condition.
 
         Raises:
-            AttributeError: If the specified field doesn't exist on the model.
+            InvalidFieldError: If the specified field doesn't exist on the model.
         """
         self._validate_field_exists(orm_model, self.field)
         model_field = getattr(orm_model, self.field)

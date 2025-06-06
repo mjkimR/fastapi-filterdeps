@@ -1,10 +1,11 @@
-from typing import Optional, TypeVar, Generic, Union
+from typing import Optional, TypeVar, Union
 from fastapi import Query
 from sqlalchemy.sql.expression import ColumnElement
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import or_, and_
 
 from fastapi_filterdeps.base import SqlFilterCriteriaBase
+from fastapi_filterdeps.exceptions import InvalidValueError
 
 
 NumericType = TypeVar("NumericType", bound=Union[int, float])
@@ -90,7 +91,8 @@ class GenericNumericRangeCriteria(SqlFilterCriteriaBase):
             callable: FastAPI dependency function that returns list of SQLAlchemy filter conditions.
 
         Raises:
-            AttributeError: If the specified field doesn't exist on the model.
+            InvalidFieldError: If the specified field doesn't exist on the model.
+            InvalidValueError: If the provided range values are invalid.
         """
         self._validate_field_exists(orm_model, self.field)
         model_field = getattr(orm_model, self.field)
@@ -115,7 +117,16 @@ class GenericNumericRangeCriteria(SqlFilterCriteriaBase):
 
             Returns:
                 Optional[ColumnElement]: SQLAlchemy filter condition or None if no filter is applied.
+
+            Raises:
+                InvalidValueError: If min_value is greater than max_value.
             """
+            if min_value is not None and max_value is not None:
+                if min_value > max_value:
+                    raise InvalidValueError(
+                        f"Minimum value ({min_value}) cannot be greater than maximum value ({max_value})"
+                    )
+
             filters = []
 
             if min_value is not None:
@@ -209,7 +220,7 @@ class GenericNumericExactCriteria(SqlFilterCriteriaBase):
             callable: FastAPI dependency function that returns list of SQLAlchemy filter conditions.
 
         Raises:
-            AttributeError: If the specified field doesn't exist on the model.
+            InvalidFieldError: If the specified field doesn't exist on the model.
         """
         self._validate_field_exists(orm_model, self.field)
         model_field = getattr(orm_model, self.field)

@@ -2,6 +2,7 @@ from fastapi import Query
 from typing import Sequence, Optional
 
 from sqlalchemy.orm import DeclarativeBase
+from fastapi_filterdeps.exceptions import InvalidFieldError, InvalidValueError
 
 
 def order_by_params(
@@ -25,13 +26,14 @@ def order_by_params(
         callable: A FastAPI dependency function that returns a list of SQLAlchemy order_by conditions.
 
     Raises:
-        ValueError: If an invalid order_by field is provided.
+        InvalidFieldError: If a field in whitelist doesn't exist in the model.
+        InvalidValueError: If an invalid order_by field is provided.
     """
 
     # Validation: Ensure all fields in whitelist exist in the orm_model
     for field_name in whitelist:
         if not hasattr(orm_model, field_name):
-            raise AttributeError(
+            raise InvalidFieldError(
                 f"Field '{field_name}' listed in whitelist does not exist in model '{orm_model.__name__}'."
             )
 
@@ -64,8 +66,8 @@ def order_by_params(
         # Validation: Check if order_by fields are in the whitelist
         for option in options:
             if option["field"] not in whitelist:
-                raise ValueError(
-                    f"Invalid order by field: '{option["field"]}'. Allowed fields: {', '.join(whitelist)}"
+                raise InvalidValueError(
+                    f"Invalid order by field: '{option['field']}'. Allowed fields: {', '.join(whitelist)}"
                 )
 
         # Return SQLAlchemy order_by conditions

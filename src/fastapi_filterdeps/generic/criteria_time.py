@@ -8,6 +8,7 @@ from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.sql.expression import ColumnElement
 
 from fastapi_filterdeps.base import SqlFilterCriteriaBase
+from fastapi_filterdeps.exceptions import InvalidValueError
 
 
 class TimeUnit(str, Enum):
@@ -93,7 +94,7 @@ class GenericTimeRangeCriteria(SqlFilterCriteriaBase):
             callable: FastAPI dependency function that returns list of SQLAlchemy filter conditions.
 
         Raises:
-            AttributeError: If the specified field doesn't exist on the model.
+            InvalidFieldError: If the specified field doesn't exist on the model.
         """
         self._validate_field_exists(orm_model, self.field)
         model_field = getattr(orm_model, self.field)
@@ -120,12 +121,12 @@ class GenericTimeRangeCriteria(SqlFilterCriteriaBase):
                 list: List of SQLAlchemy filter conditions.
 
             Raises:
-                ValueError: If the date range is invalid.
+                InvalidValueError: If the date range is invalid.
             """
             filters = []
 
             if start is not None and end is not None and start > end:
-                raise ValueError("Start date must be before end date")
+                raise InvalidValueError("Start date must be before end date")
 
             if start is not None:
                 if self.include_start_bound:
@@ -214,8 +215,8 @@ class GenericRelativeTimeCriteria(SqlFilterCriteriaBase):
             callable: FastAPI dependency function that returns list of SQLAlchemy filter conditions.
 
         Raises:
-            AttributeError: If the specified field doesn't exist on the model.
-            ValueError: If the time unit is invalid.
+            InvalidFieldError: If the specified field doesn't exist on the model.
+            InvalidValueError: If the time unit is invalid.
         """
         self._validate_field_exists(orm_model, self.field)
         model_field = getattr(orm_model, self.field)

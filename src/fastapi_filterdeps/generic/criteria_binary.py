@@ -90,8 +90,8 @@ class GenericBinaryCriteria(SqlFilterCriteriaBase):
             callable: FastAPI dependency function that returns list of SQLAlchemy filter conditions.
 
         Raises:
-            AttributeError: If the specified field doesn't exist on the model.
-            ValueError: If the filter type is invalid.
+            InvalidFieldError: If the specified field doesn't exist on the model.
+            InvalidValueError: If the filter type is invalid.
         """
         self._validate_field_exists(orm_model, self.field)
         self._validate_enum_value(

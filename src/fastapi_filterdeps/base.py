@@ -7,6 +7,8 @@ from sqlalchemy import Column, ColumnElement, Sequence
 import sqlalchemy
 from sqlalchemy.orm import DeclarativeBase
 
+from fastapi_filterdeps.exceptions import InvalidFieldError, InvalidValueError
+
 
 class SqlFilterCriteriaBase:
     """Base class for filter options.
@@ -32,17 +34,17 @@ class SqlFilterCriteriaBase:
     def _validate_field_exists(
         self, orm_model: type[DeclarativeBase], field: str
     ) -> None:
-        """Validate that a field exists on the model.
+        """Validate that a field exists on the model and has the correct type.
 
         Args:
             orm_model (type[DeclarativeBase]): The SQLAlchemy model class to check.
             field (str): The field name to validate.
 
         Raises:
-            AttributeError: If the field doesn't exist on the model.
+            InvalidFieldError: If the field doesn't exist on the model or has an invalid type.
         """
         if not hasattr(orm_model, field):
-            raise AttributeError(
+            raise InvalidFieldError(
                 f"Field '{field}' does not exist on model '{orm_model.__name__}'"
             )
 
@@ -57,10 +59,10 @@ class SqlFilterCriteriaBase:
             field_name (str): Name of the field for error messages.
 
         Raises:
-            ValueError: If the value is not in valid_values.
+            InvalidValueError: If the value is not in valid_values.
         """
         if value not in valid_values:
-            raise ValueError(
+            raise InvalidValueError(
                 f"Invalid {field_name}: {value}. "
                 f"Valid values are: {', '.join(sorted(valid_values))}"
             )
@@ -74,16 +76,16 @@ class SqlFilterCriteriaBase:
             orm_model (type[DeclarativeBase]): The SQLAlchemy model class to check.
 
         Raises:
-            ValueError: If the model doesn't have primary keys.
+            InvalidFieldError: If the model doesn't have primary keys.
         """
         try:
             pk_columns = self._get_primary_keys(orm_model)
             if not pk_columns:
-                raise ValueError(
+                raise InvalidFieldError(
                     f"Model '{orm_model.__name__}' must have primary key(s)"
                 )
         except Exception as e:
-            raise ValueError(f"Failed to get primary keys: {str(e)}")
+            raise InvalidFieldError(f"Failed to get primary keys: {str(e)}")
 
     def _get_default_description(self) -> str:
         """Get default description for the filter.
@@ -107,14 +109,14 @@ class SqlFilterCriteriaBase:
             Sequence of primary key columns
 
         Raises:
-            ValueError: If model inspection fails or no primary keys are found
+            InvalidFieldError: If model inspection fails or no primary keys are found
         """
         inspector_result = sqlalchemy.inspect(model)
         if inspector_result is None:
-            raise ValueError("Model inspection failed.")
+            raise InvalidFieldError("Model inspection failed.")
         primary_key_columns: Sequence[Column] = inspector_result.mapper.primary_key
         if not primary_key_columns or len(primary_key_columns) == 0:
-            raise ValueError(f"No primary key found for model {model.__name__}")
+            raise InvalidFieldError(f"No primary key found for model {model.__name__}")
         return primary_key_columns
 
 
@@ -135,7 +137,7 @@ def create_combined_filter_dependency(
         callable: A FastAPI dependency function that returns combined SQLAlchemy filter conditions.
 
     Raises:
-        ValueError: When duplicate parameter names or aliases are found in the filter options.
+        InvalidValueError: When duplicate parameter names or aliases are found in the filter options.
 
     Example:
         build_filter_conditions(FilterName(), FilterCreator(), orm_model=Memo)

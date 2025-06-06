@@ -3,7 +3,8 @@ import inspect
 from typing import Optional, Type, Any, Union, List, Callable
 
 
-from sqlalchemy import ColumnElement
+from sqlalchemy import Column, ColumnElement, Sequence
+import sqlalchemy
 from sqlalchemy.orm import DeclarativeBase
 
 
@@ -27,6 +28,27 @@ class SqlFilterCriteriaBase:
             callable: A FastAPI dependency function that returns SQLAlchemy filter conditions.
         """
         raise NotImplementedError
+
+    @classmethod
+    def _get_primary_keys(cls, model: type[DeclarativeBase]) -> Sequence[Column]:
+        """Get primary key columns for the given model.
+
+        Args:
+            model: SQLAlchemy model class
+
+        Returns:
+            Sequence of primary key columns
+
+        Raises:
+            ValueError: If model inspection fails or no primary keys are found
+        """
+        inspector_result = sqlalchemy.inspect(model)
+        if inspector_result is None:
+            raise ValueError("Model inspection failed.")
+        primary_key_columns: Sequence[Column] = inspector_result.mapper.primary_key
+        if not primary_key_columns or len(primary_key_columns) == 0:
+            raise ValueError(f"No primary key found for model {model.__name__}")
+        return primary_key_columns
 
 
 def create_combined_filter_dependency(

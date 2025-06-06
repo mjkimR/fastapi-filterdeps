@@ -43,6 +43,40 @@ class GenericStringCriteria(SqlFilterCriteriaBase):
         match_type (StringMatchType): String matching strategy to use.
         case_sensitive (bool): Whether the matching should be case sensitive.
         description (Optional[str]): Custom description for the filter parameter.
+
+    Examples:
+        # Search users by name (case-insensitive partial match)
+        name_search = GenericStringCriteria(
+            field="name",
+            alias="name_search",
+            match_type=StringMatchType.CONTAINS,
+            case_sensitive=False
+        )
+
+        # Filter products by SKU prefix (case-sensitive)
+        sku_filter = GenericStringCriteria(
+            field="sku",
+            alias="sku_prefix",
+            match_type=StringMatchType.PREFIX,
+            case_sensitive=True,
+            description="Filter products by SKU prefix"
+        )
+
+        # Filter files by extension (case-insensitive suffix)
+        file_filter = GenericStringCriteria(
+            field="filename",
+            alias="extension",
+            match_type=StringMatchType.SUFFIX,
+            case_sensitive=False
+        )
+
+        # Exclude items by exact tag match
+        tag_filter = GenericStringCriteria(
+            field="tag",
+            alias="exclude_tag",
+            match_type=StringMatchType.NOT_EQUAL,
+            case_sensitive=True
+        )
     """
 
     def __init__(
@@ -168,6 +202,31 @@ class GenericStringSetCriteria(SqlFilterCriteriaBase):
         alias (str): Query parameter name to use in API endpoints.
         exclude (bool): Whether to use NOT IN instead of IN.
         description (Optional[str]): Custom description for the filter parameter.
+
+    Examples:
+        # Filter users by allowed domains
+        domain_filter = GenericStringSetCriteria(
+            field="email_domain",
+            alias="allowed_domains",
+            exclude=False,
+            description="Filter users by email domain"
+        )
+
+        # Filter products by excluded categories
+        category_filter = GenericStringSetCriteria(
+            field="category",
+            alias="excluded_categories",
+            exclude=True,
+            description="Exclude products in specified categories"
+        )
+
+        # Filter posts by tags
+        tag_filter = GenericStringSetCriteria(
+            field="tag",
+            alias="post_tags",
+            exclude=False,
+            description="Filter posts by one or more tags"
+        )
     """
 
     def __init__(

@@ -26,6 +26,38 @@ class GenericNumericRangeCriteria(SqlFilterCriteriaBase):
         include_min_bound (bool): Whether to include the minimum bound in the filter conditions.
         include_max_bound (bool): Whether to include the maximum bound in the filter conditions.
         description (Optional[str]): Custom description for the filter parameter.
+
+    Examples:
+        # Filter products by price range (inclusive bounds)
+        price_range_filter = GenericNumericRangeCriteria(
+            field="price",
+            min_alias="min_price",
+            max_alias="max_price",
+            numeric_type=float,
+            exclude=False,
+            include_min_bound=True,
+            include_max_bound=True
+        )
+
+        # Filter users by age range (exclusive bounds)
+        age_range_filter = GenericNumericRangeCriteria(
+            field="age",
+            min_alias="min_age",
+            max_alias="max_age",
+            numeric_type=int,
+            exclude=False,
+            include_min_bound=False,
+            include_max_bound=False
+        )
+
+        # Filter items outside a specific quantity range
+        quantity_range_filter = GenericNumericRangeCriteria(
+            field="quantity",
+            min_alias="exclude_min_qty",
+            max_alias="exclude_max_qty",
+            numeric_type=int,
+            exclude=True  # Will match items with quantity outside the range
+        )
     """
 
     def __init__(
@@ -177,6 +209,30 @@ class GenericNumericExactCriteria(SqlFilterCriteriaBase):
         numeric_type (type[NumericType]): The type of numeric field to filter on.
         exclude (bool): Whether to use not equal instead of equal.
         description (Optional[str]): Custom description for the filter parameter.
+
+    Examples:
+        # Filter products by exact price
+        exact_price_filter = GenericNumericExactCriteria(
+            field="price",
+            alias="exact_price",
+            numeric_type=float
+        )
+
+        # Filter orders by quantity not equal to specific value
+        exclude_quantity_filter = GenericNumericExactCriteria(
+            field="quantity",
+            alias="exclude_qty",
+            numeric_type=int,
+            exclude=True  # Will match orders where quantity != specified value
+        )
+
+        # Filter ratings by exact score
+        rating_filter = GenericNumericExactCriteria(
+            field="score",
+            alias="rating",
+            numeric_type=float,
+            description="Filter reviews by exact rating score"
+        )
     """
 
     def __init__(

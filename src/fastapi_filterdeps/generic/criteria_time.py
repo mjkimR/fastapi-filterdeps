@@ -1,46 +1,72 @@
-from datetime import datetime
+from datetime import datetime, timedelta
+from enum import Enum
 from typing import Optional
+from dateutil.relativedelta import relativedelta
 
 from fastapi import Query
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.sql.expression import ColumnElement
 
 from fastapi_filterdeps.base import SqlFilterCriteriaBase
 
 
-class GenericTimeRangeCriteria(SqlFilterCriteriaBase):
-    """Base filter for time range filtering.
+class TimeUnit(str, Enum):
+    """Time units for relative date calculations.
 
-    Provides a generic implementation for filtering records within a time range
-    using start and end parameters.
+    Available units:
+    - DAY: Daily unit
+    - WEEK: Weekly unit
+    - MONTH: Monthly unit
+    - YEAR: Yearly unit
+    """
+
+    DAY = "day"
+    WEEK = "week"
+    MONTH = "month"
+    YEAR = "year"
+
+
+class GenericTimeRangeCriteria(SqlFilterCriteriaBase):
+    """Base filter for explicit time range filtering.
+
+    Provides filtering for datetime fields using explicit start and end dates.
 
     Attributes:
         field (str): Model datetime field name to filter on.
-        alias (str): Base name for query parameters (will be appended with _start and _end).
-        bound_type (type): Type of datetime field (default is datetime).
-        include_bounds (bool): Whether to include the bounds in the filter conditions.
-        need_all_params (bool): Whether to require both min and max parameters for the filter.
+        start_alias (str): Query parameter name for start time.
+        end_alias (str): Query parameter name for end time.
+        include_start_bound (bool): Whether to include the start bound in the filter conditions.
+        include_end_bound (bool): Whether to include the end bound in the filter conditions.
+        description (Optional[str]): Custom description for the filter parameter.
     """
 
     def __init__(
-            self, field: str, alias: str,
-            bound_type: type = datetime,
-            include_bounds: bool = True,
-            need_all_params: bool = False,
+        self,
+        field: str,
+        start_alias: str = None,
+        end_alias: str = None,
+        include_start_bound: bool = True,
+        include_end_bound: bool = True,
+        description: Optional[str] = None,
     ):
         """Initialize the time range filter.
 
         Args:
             field (str): Model datetime field name to filter on.
-            alias (str): Base name for query parameters.
-            bound_type (type): Type of datetime field (default is datetime).
-            include_bounds (bool): Whether to include the bounds in the filter conditions.
-            need_all_params (bool): Whether to require both start and end parameters for the filter.
+            start_alias (str, optional): Query parameter name for start time.
+            end_alias (str, optional): Query parameter name for end time.
+            include_start_bound (bool): Whether to include the start bound in the filter conditions.
+            include_end_bound (bool): Whether to include the end bound in the filter conditions.
+            description (Optional[str]): Custom description for the filter parameter.
         """
         self.field = field
-        self.alias = alias
-        self.bound_type = bound_type
-        self.include_bounds = include_bounds
-        self.need_all_params = need_all_params
+        self.start_alias = start_alias or f"{field}_start"
+        self.end_alias = end_alias or f"{field}_end"
+        self.include_start_bound = include_start_bound
+        self.include_end_bound = include_end_bound
+        self.description = (
+            description or f"Filter by time range on field '{self.field}'"
+        )
 
     def build_filter(self, orm_model: type[DeclarativeBase]):
         """Build a FastAPI dependency for time range filtering.
@@ -49,49 +75,179 @@ class GenericTimeRangeCriteria(SqlFilterCriteriaBase):
             orm_model (type[DeclarativeBase]): SQLAlchemy model class to create filter for.
 
         Returns:
-            callable: FastAPI dependency function that returns SQLAlchemy filter conditions.
+            callable: FastAPI dependency function that returns list of SQLAlchemy filter conditions.
 
         Raises:
             AttributeError: If the specified field doesn't exist on the model.
         """
         if not hasattr(orm_model, self.field):
-            raise AttributeError(f"Field '{self.field}' does not exist on model '{orm_model.__name__}'")
+            raise AttributeError(
+                f"Field '{self.field}' does not exist on model '{orm_model.__name__}'"
+            )
 
-        bound_type = self.bound_type
+        model_field = getattr(orm_model, self.field)
 
         def filter_dependency(
-                start: Optional[bound_type] = Query(
-                    default=None, alias=f"{self.alias}_start",
-                    description=f"Filter by start time on field '{self.field}'."
-                ),
-                end: Optional[bound_type] = Query(
-                    default=None, alias=f"{self.alias}_end",
-                    description=f"Filter by end time on field '{self.field}'."
-                ),
-        ):
+            start: Optional[datetime] = Query(
+                default=None,
+                alias=self.start_alias,
+                description=f"Start time for filtering {self.field}",
+            ),
+            end: Optional[datetime] = Query(
+                default=None,
+                alias=self.end_alias,
+                description=f"End time for filtering {self.field}",
+            ),
+        ) -> list[ColumnElement]:
             """Generate time range filter conditions.
 
             Args:
-                start (Optional[bound_type]): Start datetime for range filter.
-                end (Optional[bound_type]): End datetime for range filter.
+                start (Optional[datetime]): Start datetime for range filter.
+                end (Optional[datetime]): End datetime for range filter.
 
             Returns:
-                list: List of SQLAlchemy filter conditions or empty list if no dates provided.
+                list: List of SQLAlchemy filter conditions.
+
+            Raises:
+                ValueError: If the date range is invalid.
             """
-            if self.need_all_params and (start is None or end is None):
-                raise ValueError(f"Both '{self.alias}_start' and '{self.alias}_end' parameters are required.")
+            filters = []
+
+            if start is not None and end is not None and start > end:
+                raise ValueError("Start date must be before end date")
+
+            if start is not None:
+                if self.include_start_bound:
+                    filters.append(model_field >= start)
+                else:
+                    filters.append(model_field > start)
+            if end is not None:
+                if self.include_end_bound:
+                    filters.append(model_field <= end)
+                else:
+                    filters.append(model_field < end)
+
+            return filters
+
+        return filter_dependency
+
+
+class GenericRelativeTimeCriteria(SqlFilterCriteriaBase):
+    """Base filter for relative time filtering.
+
+    Provides filtering for datetime fields using a reference date and offset.
+
+    Attributes:
+        field (str): Model datetime field name to filter on.
+        reference_alias (str): Query parameter name for reference date.
+        unit_alias (str): Query parameter name for time unit.
+        offset_alias (str): Query parameter name for offset value.
+        include_start_bound (bool): Whether to include the start bound in the filter conditions.
+        include_end_bound (bool): Whether to include the end bound in the filter conditions.
+        description (Optional[str]): Custom description for the filter parameter.
+    """
+
+    def __init__(
+        self,
+        field: str,
+        reference_alias: str = None,
+        unit_alias: str = None,
+        offset_alias: str = None,
+        include_start_bound: bool = True,
+        include_end_bound: bool = True,
+        description: Optional[str] = None,
+    ):
+        """Initialize the relative time filter.
+
+        Args:
+            field (str): Model datetime field name to filter on.
+            reference_alias (str, optional): Query parameter name for reference date.
+            unit_alias (str, optional): Query parameter name for time unit.
+            offset_alias (str, optional): Query parameter name for offset value.
+            include_start_bound (bool): Whether to include the start bound in the filter conditions.
+            include_end_bound (bool): Whether to include the end bound in the filter conditions.
+            description (Optional[str]): Custom description for the filter parameter.
+        """
+        self.field = field
+        self.reference_alias = reference_alias or f"{field}_reference"
+        self.unit_alias = unit_alias or f"{field}_unit"
+        self.offset_alias = offset_alias or f"{field}_offset"
+        self.include_start_bound = include_start_bound
+        self.include_end_bound = include_end_bound
+        self.description = (
+            description or f"Filter by relative time on field '{self.field}'"
+        )
+
+    def build_filter(self, orm_model: type[DeclarativeBase]):
+        """Build a FastAPI dependency for relative time filtering.
+
+        Args:
+            orm_model (type[DeclarativeBase]): SQLAlchemy model class to create filter for.
+
+        Returns:
+            callable: FastAPI dependency function that returns list of SQLAlchemy filter conditions.
+
+        Raises:
+            AttributeError: If the specified field doesn't exist on the model.
+        """
+        if not hasattr(orm_model, self.field):
+            raise AttributeError(
+                f"Field '{self.field}' does not exist on model '{orm_model.__name__}'"
+            )
+
+        model_field = getattr(orm_model, self.field)
+
+        def filter_dependency(
+            reference: datetime = Query(
+                default=datetime.now(),
+                alias=self.reference_alias,
+                description=f"Reference date for filtering {self.field}",
+            ),
+            unit: TimeUnit = Query(
+                default=TimeUnit.DAY,
+                alias=self.unit_alias,
+                description="Time unit for offset calculation",
+            ),
+            offset: int = Query(
+                default=-7,
+                alias=self.offset_alias,
+                description="Number of time units to offset from reference date",
+            ),
+        ) -> list[ColumnElement]:
+            """Generate relative time filter conditions.
+
+            Args:
+                reference (datetime): Reference date for calculations.
+                unit (TimeUnit): Time unit for offset calculation.
+                offset (int): Number of time units to offset from reference date.
+
+            Returns:
+                list: List of SQLAlchemy filter conditions.
+            """
+            if unit == TimeUnit.DAY:
+                start = reference + timedelta(days=offset)
+            elif unit == TimeUnit.WEEK:
+                start = reference + timedelta(weeks=offset)
+            elif unit == TimeUnit.MONTH:
+                start = reference + relativedelta(months=offset)
+            elif unit == TimeUnit.YEAR:
+                start = reference + relativedelta(years=offset)
+            else:
+                raise ValueError(f"Invalid time unit: {unit}")
+
+            if offset > 0:
+                start, reference = reference, start
 
             filters = []
-            if start is not None:
-                if self.include_bounds:
-                    filters.append(getattr(orm_model, self.field) >= start)
-                else:
-                    filters.append(getattr(orm_model, self.field) > start)
-            if end is not None:
-                if self.include_bounds:
-                    filters.append(getattr(orm_model, self.field) <= end)
-                else:
-                    filters.append(getattr(orm_model, self.field) < end)
+            if self.include_start_bound:
+                filters.append(model_field >= start)
+            else:
+                filters.append(model_field > start)
+
+            if self.include_end_bound:
+                filters.append(model_field <= reference)
+            else:
+                filters.append(model_field < reference)
 
             return filters
 

@@ -19,6 +19,35 @@ class GenericEnumCriteria(SqlFilterCriteriaBase):
         alias (str): Query parameter name to use in API endpoints.
         enum_class (Type[Enum]): The Enum class to use for filtering.
         description (Optional[str]): Custom description for the filter parameter.
+
+    Examples:
+        >>> from enum import Enum
+        >>>
+        >>> class OrderStatus(str, Enum):
+        ...     PENDING = "pending"
+        ...     PROCESSING = "processing"
+        ...     COMPLETED = "completed"
+        ...     CANCELLED = "cancelled"
+        >>>
+        >>> # Filter orders by status
+        >>> status_filter = GenericEnumCriteria(
+        ...     field="status",
+        ...     alias="order_status",
+        ...     enum_class=OrderStatus
+        ... )
+        >>>
+        >>> # Filter tasks by priority with custom description
+        >>> class Priority(str, Enum):
+        ...     LOW = "low"
+        ...     MEDIUM = "medium"
+        ...     HIGH = "high"
+        >>>
+        >>> priority_filter = GenericEnumCriteria(
+        ...     field="priority",
+        ...     alias="task_priority",
+        ...     enum_class=Priority,
+        ...     description="Filter tasks by priority level"
+        ... )
     """
 
     def __init__(
@@ -102,6 +131,36 @@ class GenericMultiEnumCriteria(SqlFilterCriteriaBase):
         alias (str): Query parameter name to use in API endpoints.
         enum_class (Type[Enum]): The Enum class to use for filtering.
         description (Optional[str]): Custom description for the filter parameter.
+
+    Examples:
+        >>> from enum import Enum
+        >>>
+        >>> class UserRole(str, Enum):
+        ...     ADMIN = "admin"
+        ...     MODERATOR = "moderator"
+        ...     EDITOR = "editor"
+        ...     VIEWER = "viewer"
+        >>>
+        >>> # Filter users by multiple roles
+        >>> role_filter = GenericMultiEnumCriteria(
+        ...     field="role",
+        ...     alias="user_roles",
+        ...     enum_class=UserRole
+        ... )
+        >>>
+        >>> # Filter products by multiple categories
+        >>> class ProductCategory(str, Enum):
+        ...     ELECTRONICS = "electronics"
+        ...     CLOTHING = "clothing"
+        ...     BOOKS = "books"
+        ...     FOOD = "food"
+        >>>
+        >>> category_filter = GenericMultiEnumCriteria(
+        ...     field="category",
+        ...     alias="product_categories",
+        ...     enum_class=ProductCategory,
+        ...     description="Filter products by one or more categories"
+        ... )
     """
 
     def __init__(

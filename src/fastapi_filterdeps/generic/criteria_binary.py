@@ -43,6 +43,29 @@ class GenericBinaryCriteria(SqlFilterCriteriaBase):
         alias (str): Query parameter name to use in API endpoints.
         filter_type (BinaryFilterType): Type of binary filter to apply.
         description (Optional[str]): Custom description for the filter parameter.
+
+    Examples:
+        # Filter active users
+        active_filter = GenericBinaryCriteria(
+            field="is_active",
+            alias="active_only",
+            filter_type=BinaryFilterType.IS_TRUE
+        )
+
+        # Filter incomplete tasks
+        incomplete_filter = GenericBinaryCriteria(
+            field="completed",
+            alias="show_incomplete",
+            filter_type=BinaryFilterType.IS_FALSE
+        )
+
+        # Filter users with verified email
+        verified_filter = GenericBinaryCriteria(
+            field="email_verified_at",
+            alias="verified_only",
+            filter_type=BinaryFilterType.IS_NOT_NONE,
+            description="Show only users with verified email"
+        )
     """
 
     def __init__(

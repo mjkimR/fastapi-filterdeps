@@ -18,6 +18,30 @@ class GenericRegexCriteria(SqlFilterCriteriaBase):
         alias (str): Query parameter name to use in API endpoints.
         case_sensitive (bool): Whether the matching should be case sensitive.
         description (Optional[str]): Custom description for the filter parameter.
+
+    Examples:
+        # Filter users by email domain pattern
+        email_filter = GenericRegexCriteria(
+            field="email",
+            alias="email_pattern",
+            case_sensitive=False,
+            description="Filter users by email pattern (e.g. '@example\\.com$')"
+        )
+
+        # Filter products by name with case-sensitive pattern
+        name_filter = GenericRegexCriteria(
+            field="name",
+            alias="name_pattern",
+            case_sensitive=True
+        )
+
+        # Filter logs by message pattern
+        log_filter = GenericRegexCriteria(
+            field="message",
+            alias="log_pattern",
+            case_sensitive=False,
+            description="Filter logs by message content using regex"
+        )
     """
 
     def __init__(

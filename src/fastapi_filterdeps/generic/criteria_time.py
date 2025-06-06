@@ -39,6 +39,31 @@ class GenericTimeRangeCriteria(SqlFilterCriteriaBase):
         include_start_bound (bool): Whether to include the start bound in the filter conditions.
         include_end_bound (bool): Whether to include the end bound in the filter conditions.
         description (Optional[str]): Custom description for the filter parameter.
+
+    Examples:
+        # Filter orders by creation date range (inclusive bounds)
+        order_date_filter = GenericTimeRangeCriteria(
+            field="created_at",
+            start_alias="order_from",
+            end_alias="order_to",
+            include_start_bound=True,
+            include_end_bound=True
+        )
+
+        # Filter events by time range (exclusive bounds)
+        event_time_filter = GenericTimeRangeCriteria(
+            field="event_time",
+            start_alias="after",
+            end_alias="before",
+            include_start_bound=False,
+            include_end_bound=False
+        )
+
+        # Filter logs by timestamp with custom description
+        log_filter = GenericTimeRangeCriteria(
+            field="timestamp",
+            description="Filter log entries by time range"
+        )
     """
 
     def __init__(
@@ -157,6 +182,30 @@ class GenericRelativeTimeCriteria(SqlFilterCriteriaBase):
         include_start_bound (bool): Whether to include the start bound in the filter conditions.
         include_end_bound (bool): Whether to include the end bound in the filter conditions.
         description (Optional[str]): Custom description for the filter parameter.
+
+    Examples:
+        # Filter orders from last 7 days
+        recent_orders_filter = GenericRelativeTimeCriteria(
+            field="created_at",
+            reference_alias="from_date",
+            unit_alias="time_unit",
+            offset_alias="days_ago"
+        )
+
+        # Filter events from last month (exclusive bounds)
+        monthly_events_filter = GenericRelativeTimeCriteria(
+            field="event_time",
+            include_start_bound=False,
+            include_end_bound=False,
+            description="Filter events from the past month"
+        )
+
+        # Filter user activity with custom time unit
+        activity_filter = GenericRelativeTimeCriteria(
+            field="last_active",
+            unit_alias="inactive_period_unit",
+            offset_alias="inactive_period"
+        )
     """
 
     def __init__(

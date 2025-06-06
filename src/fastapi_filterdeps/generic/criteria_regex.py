@@ -11,6 +11,7 @@ class GenericRegexCriteria(SqlFilterCriteriaBase):
     """Base filter for regular expression matching.
 
     Provides a generic implementation for filtering with regular expressions.
+    This implementation uses the regexp_match function from SQLAlchemy and (?i) flag for case-insensitive matching.
     Note that regular expression support and syntax may vary by database engine.
 
     Attributes:
@@ -78,65 +79,7 @@ class GenericRegexCriteria(SqlFilterCriteriaBase):
             """
             if value is None:
                 return None
-            return model_field.regexp_match(value)
-
-        return filter_dependency
-
-
-class PostgresRegexCriteria(GenericRegexCriteria):
-    """PostgreSQL-specific implementation of regex filtering.
-
-    Uses PostgreSQL's regex syntax with (?i) flag for case-insensitive matching.
-    """
-
-    def build_filter(self, orm_model: type[DeclarativeBase]):
-        if not hasattr(orm_model, self.field):
-            raise AttributeError(
-                f"Field '{self.field}' does not exist on model '{orm_model.__name__}'"
-            )
-
-        model_field = getattr(orm_model, self.field)
-
-        def filter_dependency(
-            value: Optional[str] = Query(
-                default=None, alias=self.alias, description=self.description
-            )
-        ) -> Optional[ColumnElement]:
-            if value is None:
-                return None
             pattern = value if self.case_sensitive else f"(?i){value}"
             return model_field.regexp_match(pattern)
-
-        return filter_dependency
-
-
-class MySQLRegexCriteria(GenericRegexCriteria):
-    """MySQL-specific implementation of regex filtering.
-
-    Uses MySQL's REGEXP operator with optional case sensitivity through BINARY keyword.
-    """
-
-    def build_filter(self, orm_model: type[DeclarativeBase]):
-        if not hasattr(orm_model, self.field):
-            raise AttributeError(
-                f"Field '{self.field}' does not exist on model '{orm_model.__name__}'"
-            )
-
-        model_field = getattr(orm_model, self.field)
-
-        def filter_dependency(
-            value: Optional[str] = Query(
-                default=None, alias=self.alias, description=self.description
-            )
-        ) -> Optional[ColumnElement]:
-            if value is None:
-                return None
-            if self.case_sensitive:
-                return func.regexp_like(
-                    model_field, value, "c"
-                )  # 'c' flag for case-sensitive
-            return func.regexp_like(
-                model_field, value, "i"
-            )  # 'i' flag for case-insensitive
 
         return filter_dependency

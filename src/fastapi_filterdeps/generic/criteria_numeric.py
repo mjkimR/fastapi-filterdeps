@@ -2,6 +2,7 @@ from typing import Optional, TypeVar, Generic, List
 from fastapi import Query
 from sqlalchemy.sql.expression import ColumnElement
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy import or_, and_
 
 from fastapi_filterdeps.base import SqlFilterCriteriaBase
 
@@ -21,7 +22,8 @@ class GenericNumericRangeCriteria(SqlFilterCriteriaBase, Generic[NumericType]):
         min_alias (str): Query parameter name for minimum value.
         max_alias (str): Query parameter name for maximum value.
         exclude (bool): Whether to use NOT BETWEEN instead of BETWEEN.
-        include_bounds (bool): Whether to include the bounds in the filter conditions.
+        include_min_bound (bool): Whether to include the minimum bound in the filter conditions.
+        include_max_bound (bool): Whether to include the maximum bound in the filter conditions.
         description (Optional[str]): Custom description for the filter parameter.
     """
 
@@ -31,7 +33,8 @@ class GenericNumericRangeCriteria(SqlFilterCriteriaBase, Generic[NumericType]):
         min_alias: str,
         max_alias: str,
         exclude: bool = False,
-        include_bounds: bool = True,
+        include_min_bound: bool = True,
+        include_max_bound: bool = True,
         description: Optional[str] = None,
     ):
         """Initialize the numeric range filter.
@@ -41,14 +44,16 @@ class GenericNumericRangeCriteria(SqlFilterCriteriaBase, Generic[NumericType]):
             min_alias (str): Query parameter name for minimum value.
             max_alias (str): Query parameter name for maximum value.
             exclude (bool): Whether to use NOT BETWEEN instead of BETWEEN.
-            include_bounds (bool): Whether to include the bounds in the filter conditions.
+            include_min_bound (bool): Whether to include the minimum bound in the filter conditions.
+            include_max_bound (bool): Whether to include the maximum bound in the filter conditions.
             description (Optional[str]): Custom description for the filter parameter.
         """
         self.field = field
         self.min_alias = min_alias
         self.max_alias = max_alias
         self.exclude = exclude
-        self.include_bounds = include_bounds
+        self.include_min_bound = include_min_bound
+        self.include_max_bound = include_max_bound
         self.min_description = description or f"Minimum value for {self.field}"
         self.max_description = description or f"Maximum value for {self.field}"
 
@@ -82,7 +87,7 @@ class GenericNumericRangeCriteria(SqlFilterCriteriaBase, Generic[NumericType]):
                 alias=self.max_alias,
                 description=self.max_description,
             ),
-        ) -> list[ColumnElement]:
+        ) -> Optional[ColumnElement]:
             """Generate numeric range filter conditions.
 
             Args:
@@ -90,35 +95,42 @@ class GenericNumericRangeCriteria(SqlFilterCriteriaBase, Generic[NumericType]):
                 max_value (Optional[NumericType]): Maximum value for range filter.
 
             Returns:
-                list: List of SQLAlchemy filter conditions based on provided bounds.
+                Optional[ColumnElement]: SQLAlchemy filter condition or None if no filter is applied.
             """
             filters = []
 
-            if min_value is not None and max_value is not None:
-                # When both values are provided, use between if include_bounds is True
-                if self.include_bounds:
-                    between = model_field.between(min_value, max_value)
-                    filters.append(~between if self.exclude else between)
-                else:
-                    # For exclusive bounds, use individual comparisons
-                    if self.exclude:
+            if min_value is not None:
+                if self.exclude:
+                    if self.include_min_bound:
+                        filters.append(model_field < min_value)
+                    else:
                         filters.append(model_field <= min_value)
-                        filters.append(model_field >= max_value)
+                else:
+                    if self.include_min_bound:
+                        filters.append(model_field >= min_value)
                     else:
                         filters.append(model_field > min_value)
-                        filters.append(model_field < max_value)
-            else:
-                # When only one value is provided
-                if min_value is not None:
-                    op = ">=" if self.include_bounds and not self.exclude else ">"
-                    op = "<" if self.exclude else op
-                    filters.append(getattr(model_field, op)(min_value))
-                if max_value is not None:
-                    op = "<=" if self.include_bounds and not self.exclude else "<"
-                    op = ">" if self.exclude else op
-                    filters.append(getattr(model_field, op)(max_value))
 
-            return filters
+            if max_value is not None:
+                if self.exclude:
+                    if self.include_max_bound:
+                        filters.append(model_field > max_value)
+                    else:
+                        filters.append(model_field >= max_value)
+                else:
+                    if self.include_max_bound:
+                        filters.append(model_field <= max_value)
+                    else:
+                        filters.append(model_field < max_value)
+
+            if not filters:
+                return None
+
+            # Combine filters with OR for exclude=True, AND for exclude=False
+            if self.exclude:
+                return or_(*filters)
+            else:
+                return and_(*filters)
 
         return filter_dependency
 
@@ -184,18 +196,18 @@ class GenericNumericExactCriteria(SqlFilterCriteriaBase, Generic[NumericType]):
                 alias=self.alias,
                 description=self.description,
             )
-        ) -> list[ColumnElement]:
+        ) -> Optional[ColumnElement]:
             """Generate numeric exact filter conditions.
 
             Args:
                 value (Optional[NumericType]): Value to match against.
 
             Returns:
-                list: List of SQLAlchemy filter conditions based on provided value.
+                Optional[ColumnElement]: SQLAlchemy filter condition or None if no filter is applied.
             """
             if value is None:
-                return []
+                return None
 
-            return [model_field != value if self.exclude else model_field == value]
+            return model_field != value if self.exclude else model_field == value
 
         return filter_dependency

@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, UTC
 from dateutil.relativedelta import relativedelta
 from fastapi_filterdeps.base import create_combined_filter_dependency
-from fastapi_filterdeps.generic.criteria_time import (
+from fastapi_filterdeps.generic.time import (
     GenericTimeRangeCriteria,
     GenericRelativeTimeCriteria,
     TimeUnit,

@@ -1,4 +1,4 @@
-from fastapi_filterdeps.specific.criteria_tags import TagsFieldCriteria
+from fastapi_filterdeps.specific.tags import TagsFieldCriteria
 
 __all__ = [
     "TagsFieldCriteria",

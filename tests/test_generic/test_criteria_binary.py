@@ -1,5 +1,5 @@
 from fastapi_filterdeps.base import create_combined_filter_dependency
-from fastapi_filterdeps.generic.criteria_binary import (
+from fastapi_filterdeps.generic.binary import (
     GenericBinaryCriteria,
     BinaryFilterType,
 )

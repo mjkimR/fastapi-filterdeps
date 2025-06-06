@@ -64,9 +64,24 @@ class GenericTimeRangeCriteria(SqlFilterCriteriaBase):
         self.end_alias = end_alias or f"{field}_end"
         self.include_start_bound = include_start_bound
         self.include_end_bound = include_end_bound
-        self.description = (
-            description or f"Filter by time range on field '{self.field}'"
-        )
+        self.description = description or self._get_default_description()
+
+    def _get_default_description(self) -> str:
+        """Get default description for the filter.
+
+        Returns:
+            str: Default description based on the filter configuration
+        """
+        bounds = []
+        if self.include_start_bound:
+            bounds.append("inclusive start")
+        else:
+            bounds.append("exclusive start")
+        if self.include_end_bound:
+            bounds.append("inclusive end")
+        else:
+            bounds.append("exclusive end")
+        return f"Filter by time range on field '{self.field}' ({', '.join(bounds)})"
 
     def build_filter(self, orm_model: type[DeclarativeBase]):
         """Build a FastAPI dependency for time range filtering.
@@ -80,11 +95,7 @@ class GenericTimeRangeCriteria(SqlFilterCriteriaBase):
         Raises:
             AttributeError: If the specified field doesn't exist on the model.
         """
-        if not hasattr(orm_model, self.field):
-            raise AttributeError(
-                f"Field '{self.field}' does not exist on model '{orm_model.__name__}'"
-            )
-
+        self._validate_field_exists(orm_model, self.field)
         model_field = getattr(orm_model, self.field)
 
         def filter_dependency(
@@ -161,7 +172,7 @@ class GenericRelativeTimeCriteria(SqlFilterCriteriaBase):
 
         Args:
             field (str): Model datetime field name to filter on.
-            reference_alias (str, optional): Query parameter name for reference date.
+            reference_alias (str, optional): Query parameter name for reference time.
             unit_alias (str, optional): Query parameter name for time unit.
             offset_alias (str, optional): Query parameter name for offset value.
             include_start_bound (bool): Whether to include the start bound in the filter conditions.
@@ -174,9 +185,24 @@ class GenericRelativeTimeCriteria(SqlFilterCriteriaBase):
         self.offset_alias = offset_alias or f"{field}_offset"
         self.include_start_bound = include_start_bound
         self.include_end_bound = include_end_bound
-        self.description = (
-            description or f"Filter by relative time on field '{self.field}'"
-        )
+        self.description = description or self._get_default_description()
+
+    def _get_default_description(self) -> str:
+        """Get default description for the filter.
+
+        Returns:
+            str: Default description based on the filter configuration
+        """
+        bounds = []
+        if self.include_start_bound:
+            bounds.append("inclusive start")
+        else:
+            bounds.append("exclusive start")
+        if self.include_end_bound:
+            bounds.append("inclusive end")
+        else:
+            bounds.append("exclusive end")
+        return f"Filter by relative time range on field '{self.field}' ({', '.join(bounds)})"
 
     def build_filter(self, orm_model: type[DeclarativeBase]):
         """Build a FastAPI dependency for relative time filtering.
@@ -189,12 +215,9 @@ class GenericRelativeTimeCriteria(SqlFilterCriteriaBase):
 
         Raises:
             AttributeError: If the specified field doesn't exist on the model.
+            ValueError: If the time unit is invalid.
         """
-        if not hasattr(orm_model, self.field):
-            raise AttributeError(
-                f"Field '{self.field}' does not exist on model '{orm_model.__name__}'"
-            )
-
+        self._validate_field_exists(orm_model, self.field)
         model_field = getattr(orm_model, self.field)
 
         def filter_dependency(

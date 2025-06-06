@@ -41,10 +41,11 @@ class TestGenericNumericRangeCriteria(BaseFilterTest):
 
     def test_filter_range_inclusive(self):
         filter_deps = create_combined_filter_dependency(
-            GenericNumericRangeCriteria[int](
+            GenericNumericRangeCriteria(
                 field="count",
                 min_alias="min_count",
                 max_alias="max_count",
+                numeric_type=int,
                 include_min_bound=True,
                 include_max_bound=True,
             ),
@@ -60,10 +61,11 @@ class TestGenericNumericRangeCriteria(BaseFilterTest):
 
     def test_filter_range_exclusive(self):
         filter_deps = create_combined_filter_dependency(
-            GenericNumericRangeCriteria[int](
+            GenericNumericRangeCriteria(
                 field="count",
                 min_alias="min_count",
                 max_alias="max_count",
+                numeric_type=int,
                 include_min_bound=False,
                 include_max_bound=False,
             ),
@@ -79,10 +81,11 @@ class TestGenericNumericRangeCriteria(BaseFilterTest):
 
     def test_filter_range_min_only(self):
         filter_deps = create_combined_filter_dependency(
-            GenericNumericRangeCriteria[int](
+            GenericNumericRangeCriteria(
                 field="count",
                 min_alias="min_count",
                 max_alias="max_count",
+                numeric_type=int,
                 include_min_bound=True,
                 include_max_bound=True,
             ),
@@ -96,10 +99,11 @@ class TestGenericNumericRangeCriteria(BaseFilterTest):
 
     def test_filter_range_exclude(self):
         filter_deps = create_combined_filter_dependency(
-            GenericNumericRangeCriteria[int](
+            GenericNumericRangeCriteria(
                 field="count",
                 min_alias="min_count",
                 max_alias="max_count",
+                numeric_type=int,
                 exclude=True,
             ),
             orm_model=TestModel,
@@ -114,10 +118,11 @@ class TestGenericNumericRangeCriteria(BaseFilterTest):
 
     def test_filter_range_mixed_bounds(self):
         filter_deps = create_combined_filter_dependency(
-            GenericNumericRangeCriteria[int](
+            GenericNumericRangeCriteria(
                 field="count",
                 min_alias="min_count",
                 max_alias="max_count",
+                numeric_type=int,
                 include_min_bound=True,
                 include_max_bound=False,
             ),
@@ -135,9 +140,10 @@ class TestGenericNumericRangeCriteria(BaseFilterTest):
 class TestGenericNumericExactCriteria(BaseFilterTest):
     def test_filter_exact_match(self):
         filter_deps = create_combined_filter_dependency(
-            GenericNumericExactCriteria[int](
+            GenericNumericExactCriteria(
                 field="count",
                 alias="count",
+                numeric_type=int,
             ),
             orm_model=TestModel,
         )
@@ -149,10 +155,11 @@ class TestGenericNumericExactCriteria(BaseFilterTest):
 
     def test_filter_exact_exclude(self):
         filter_deps = create_combined_filter_dependency(
-            GenericNumericExactCriteria[int](
+            GenericNumericExactCriteria(
                 field="count",
                 alias="count",
                 exclude=True,
+                numeric_type=int,
             ),
             orm_model=TestModel,
         )
@@ -164,9 +171,10 @@ class TestGenericNumericExactCriteria(BaseFilterTest):
 
     def test_filter_exact_none(self):
         filter_deps = create_combined_filter_dependency(
-            GenericNumericExactCriteria[int](
+            GenericNumericExactCriteria(
                 field="count",
                 alias="count",
+                numeric_type=int,
             ),
             orm_model=TestModel,
         )

@@ -1,13 +1,13 @@
-from fastapi import Query, HTTPException, status
+from fastapi import Query
 from typing import Sequence, Optional
 
 from sqlalchemy.orm import DeclarativeBase
 
 
 def order_by_params(
-        orm_model: type[DeclarativeBase],
-        whitelist: Sequence[str] = ("created_at", "updated_at", "id"),
-        default: str = "-created_at"
+    orm_model: type[DeclarativeBase],
+    whitelist: Sequence[str] = ("created_at", "updated_at", "id"),
+    default: str = "-created_at",
 ):
     """Creates a FastAPI dependency for order_by parameter handling.
 
@@ -47,15 +47,15 @@ def order_by_params(
         return tokens
 
     def order_by_dependency(
-            order_by: Optional[str] = Query(
-                default=None,
-                description=(
-                        "Order by option. Comma-separated field names, prefix with '-' for descending order.\n"
-                        "The 'id' field is automatically appended at the end if not present (acts as a tie-breaker).\n"
-                        "Example: order_by=-created_at,id\n"
-                        f"Default: '{default}'"
-                )
-            )
+        order_by: Optional[str] = Query(
+            default=None,
+            description=(
+                "Order by option. Comma-separated field names, prefix with '-' for descending order.\n"
+                "The 'id' field is automatically appended at the end if not present (acts as a tie-breaker).\n"
+                "Example: order_by=-created_at,id\n"
+                f"Default: '{default}'"
+            ),
+        )
     ):
         if order_by is None:
             order_by = default
@@ -64,7 +64,9 @@ def order_by_params(
         # Validation: Check if order_by fields are in the whitelist
         for option in options:
             if option["field"] not in whitelist:
-                raise ValueError(f"Invalid order by field: '{option["field"]}'. Allowed fields: {', '.join(whitelist)}")
+                raise ValueError(
+                    f"Invalid order by field: '{option["field"]}'. Allowed fields: {', '.join(whitelist)}"
+                )
 
         # Return SQLAlchemy order_by conditions
         order_by_conditions = []

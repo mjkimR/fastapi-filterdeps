@@ -2,7 +2,6 @@ from typing import Optional
 from fastapi import Query
 from sqlalchemy.sql.expression import ColumnElement
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import func
 
 from fastapi_filterdeps.base import SqlFilterCriteriaBase
 
@@ -33,17 +32,24 @@ class GenericRegexCriteria(SqlFilterCriteriaBase):
         Args:
             field (str): Model field name to filter on.
             alias (str): Query parameter name to use in API endpoints.
-            case_sensitive (bool): Whether the matching should be case sensitive.
+            case_sensitive (bool): Whether the regex matching should be case sensitive.
             description (Optional[str]): Custom description for the filter parameter.
         """
         self.field = field
         self.alias = alias
         self.case_sensitive = case_sensitive
-        self.description = (
-            description
-            or f"Filter by field '{self.field}' using regex pattern"
-            + (" (case sensitive)" if case_sensitive else "")
+        self.description = description or self._get_default_description()
+
+    def _get_default_description(self) -> str:
+        """Get default description for the filter.
+
+        Returns:
+            str: Default description based on the filter configuration
+        """
+        case_info = (
+            " (case sensitive)" if self.case_sensitive else " (case insensitive)"
         )
+        return f"Filter by field '{self.field}' using regex pattern{case_info}"
 
     def build_filter(self, orm_model: type[DeclarativeBase]):
         """Build a FastAPI dependency for regex filtering.
@@ -57,11 +63,7 @@ class GenericRegexCriteria(SqlFilterCriteriaBase):
         Raises:
             AttributeError: If the specified field doesn't exist on the model.
         """
-        if not hasattr(orm_model, self.field):
-            raise AttributeError(
-                f"Field '{self.field}' does not exist on model '{orm_model.__name__}'"
-            )
-
+        self._validate_field_exists(orm_model, self.field)
         model_field = getattr(orm_model, self.field)
 
         def filter_dependency(

@@ -1,6 +1,6 @@
 from enum import Enum
 from fastapi import Query
-from typing import Optional, List
+from typing import Optional
 from sqlalchemy.sql.expression import ColumnElement
 from sqlalchemy.orm import DeclarativeBase
 
@@ -66,10 +66,17 @@ class GenericStringCriteria(SqlFilterCriteriaBase):
         self.alias = alias
         self.match_type = match_type
         self.case_sensitive = case_sensitive
-        self.description = (
-            description
-            or f"Filter by field '{self.field}' using {self.match_type} match"
-            + (" (case sensitive)" if case_sensitive else "")
+        self.description = description or self._get_default_description()
+
+    def _get_default_description(self) -> str:
+        """Get default description for the filter.
+
+        Returns:
+            str: Default description based on the filter configuration
+        """
+        case_info = " (case sensitive)" if self.case_sensitive else ""
+        return (
+            f"Filter by field '{self.field}' using {self.match_type} match{case_info}"
         )
 
     def build_filter(self, orm_model: type[DeclarativeBase]):
@@ -83,16 +90,12 @@ class GenericStringCriteria(SqlFilterCriteriaBase):
 
         Raises:
             AttributeError: If the specified field doesn't exist on the model.
+            ValueError: If the match type is invalid.
         """
-        if not hasattr(orm_model, self.field):
-            raise AttributeError(
-                f"Field '{self.field}' does not exist on model '{orm_model.__name__}'"
-            )
-        if self.match_type not in StringMatchType.get_all_operators():
-            raise ValueError(
-                f"Invalid match type: {self.match_type}. "
-                f"Valid match types are: {', '.join(StringMatchType.get_all_operators())}"
-            )
+        self._validate_field_exists(orm_model, self.field)
+        self._validate_enum_value(
+            self.match_type, StringMatchType.get_all_operators(), "match type"
+        )
 
         model_field = getattr(orm_model, self.field)
 
@@ -185,10 +188,15 @@ class GenericStringSetCriteria(SqlFilterCriteriaBase):
         self.field = field
         self.alias = alias
         self.exclude = exclude
-        self.description = (
-            description
-            or f"Filter {field} where value is {'not ' if exclude else ''}in the specified set"
-        )
+        self.description = description or self._get_default_description()
+
+    def _get_default_description(self) -> str:
+        """Get default description for the filter.
+
+        Returns:
+            str: Default description based on the filter configuration
+        """
+        return f"Filter {self.field} where value is {'not ' if self.exclude else ''}in the specified set"
 
     def build_filter(self, orm_model: type[DeclarativeBase]):
         """Build a FastAPI dependency for string set filtering.
@@ -202,15 +210,11 @@ class GenericStringSetCriteria(SqlFilterCriteriaBase):
         Raises:
             AttributeError: If the specified field doesn't exist on the model.
         """
-        if not hasattr(orm_model, self.field):
-            raise AttributeError(
-                f"Field '{self.field}' does not exist on model '{orm_model.__name__}'"
-            )
-
+        self._validate_field_exists(orm_model, self.field)
         model_field = getattr(orm_model, self.field)
 
         def filter_dependency(
-            values: Optional[List[str]] = Query(
+            values: Optional[list[str]] = Query(
                 default=None,
                 alias=self.alias,
                 description=self.description,
@@ -219,7 +223,7 @@ class GenericStringSetCriteria(SqlFilterCriteriaBase):
             """Generate a string set filter condition.
 
             Args:
-                values (Optional[List[str]]): Values to match against.
+                values (Optional[list[str]]): Values to match against.
                     If None or empty list, no filtering will be applied.
 
             Returns:

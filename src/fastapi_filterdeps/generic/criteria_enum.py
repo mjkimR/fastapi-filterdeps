@@ -39,12 +39,17 @@ class GenericEnumCriteria(SqlFilterCriteriaBase):
         self.field = field
         self.alias = alias
         self.enum_class = enum_class
+        self.description = description or self._get_default_description()
 
-        # Create a readable list of available values for the description
-        enum_values = ", ".join([f"'{v.value}'" for v in enum_class])
-        self.description = (
-            description
-            or f"Filter by field '{self.field}' using one of these values: {enum_values}"
+    def _get_default_description(self) -> str:
+        """Get default description for the filter.
+
+        Returns:
+            str: Default description based on the filter configuration
+        """
+        enum_values = ", ".join([f"'{v.value}'" for v in self.enum_class])
+        return (
+            f"Filter by field '{self.field}' using one of these values: {enum_values}"
         )
 
     def build_filter(self, orm_model: type[DeclarativeBase]):
@@ -59,11 +64,7 @@ class GenericEnumCriteria(SqlFilterCriteriaBase):
         Raises:
             AttributeError: If the specified field doesn't exist on the model.
         """
-        if not hasattr(orm_model, self.field):
-            raise AttributeError(
-                f"Field '{self.field}' does not exist on model '{orm_model.__name__}'"
-            )
-
+        self._validate_field_exists(orm_model, self.field)
         model_field = getattr(orm_model, self.field)
 
         def filter_dependency(
@@ -121,13 +122,16 @@ class GenericMultiEnumCriteria(SqlFilterCriteriaBase):
         self.field = field
         self.alias = alias
         self.enum_class = enum_class
+        self.description = description or self._get_default_description()
 
-        # Create a readable list of available values for the description
-        enum_values = ", ".join([f"'{v.value}'" for v in enum_class])
-        self.description = (
-            description
-            or f"Filter by field '{self.field}' using one or more of these values: {enum_values}"
-        )
+    def _get_default_description(self) -> str:
+        """Get default description for the filter.
+
+        Returns:
+            str: Default description based on the filter configuration
+        """
+        enum_values = ", ".join([f"'{v.value}'" for v in self.enum_class])
+        return f"Filter by field '{self.field}' using one or more of these values: {enum_values}"
 
     def build_filter(self, orm_model: type[DeclarativeBase]):
         """Build a FastAPI dependency for multi-enum filtering.
@@ -141,11 +145,7 @@ class GenericMultiEnumCriteria(SqlFilterCriteriaBase):
         Raises:
             AttributeError: If the specified field doesn't exist on the model.
         """
-        if not hasattr(orm_model, self.field):
-            raise AttributeError(
-                f"Field '{self.field}' does not exist on model '{orm_model.__name__}'"
-            )
-
+        self._validate_field_exists(orm_model, self.field)
         model_field = getattr(orm_model, self.field)
 
         def filter_dependency(

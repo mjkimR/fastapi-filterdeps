@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional, List
+from typing import Optional
 from fastapi import Query
 from sqlalchemy.sql.expression import ColumnElement
 from sqlalchemy.orm import DeclarativeBase
@@ -119,7 +119,7 @@ class GenericOrderCriteria(SqlFilterCriteriaBase):
 
     def _get_order_by_criteria(
         self, model_field: ColumnElement, orm_model: type[DeclarativeBase]
-    ) -> List[ColumnElement]:
+    ) -> list[ColumnElement]:
         """Get the complete ordering criteria including primary keys.
 
         This method creates a list of columns to order by, ensuring consistent
@@ -136,7 +136,7 @@ class GenericOrderCriteria(SqlFilterCriteriaBase):
             orm_model: The SQLAlchemy model class
 
         Returns:
-            List[ColumnElement]: List of columns to use in ORDER BY clause
+            list[ColumnElement]: List of columns to use in ORDER BY clause
         """
         order_by = []
 
@@ -179,27 +179,14 @@ class GenericOrderCriteria(SqlFilterCriteriaBase):
             ValueError: If the model doesn't have primary key(s)
         """
         # Validate field existence
-        if not hasattr(orm_model, self.field):
-            raise AttributeError(
-                f"Field '{self.field}' does not exist on model '{orm_model.__name__}'"
-            )
+        self._validate_field_exists(orm_model, self.field)
 
         # Validate partition_by fields existence
         for partition_field in self.partition_by:
-            if not hasattr(orm_model, partition_field):
-                raise AttributeError(
-                    f"Partition field '{partition_field}' does not exist on model '{orm_model.__name__}'"
-                )
+            self._validate_field_exists(orm_model, partition_field)
 
         # Validate primary key existence
-        try:
-            pk_columns = self._get_primary_keys(orm_model)
-            if not pk_columns:
-                raise ValueError(
-                    f"Model '{orm_model.__name__}' must have primary key(s)"
-                )
-        except Exception as e:
-            raise ValueError(f"Failed to get primary keys: {str(e)}")
+        self._validate_model_has_primary_keys(orm_model)
 
         model_field = getattr(orm_model, self.field)
         partition_fields = [getattr(orm_model, field) for field in self.partition_by]
@@ -234,8 +221,12 @@ class GenericOrderCriteria(SqlFilterCriteriaBase):
             subq = select(orm_model, row_number).subquery()
 
             # Filter using primary keys with IN clause
-            pk_attrs = [getattr(orm_model, pk.name) for pk in pk_columns]
-            subq_pk_attrs = [getattr(subq.c, pk.name) for pk in pk_columns]
+            pk_attrs = [
+                getattr(orm_model, pk.name) for pk in self._get_primary_keys(orm_model)
+            ]
+            subq_pk_attrs = [
+                getattr(subq.c, pk.name) for pk in self._get_primary_keys(orm_model)
+            ]
 
             return tuple_(*pk_attrs).in_(
                 select(*subq_pk_attrs).where(subq.c.row_number == 1)

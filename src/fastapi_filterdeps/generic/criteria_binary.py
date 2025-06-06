@@ -91,16 +91,12 @@ class GenericBinaryCriteria(SqlFilterCriteriaBase):
 
         Raises:
             AttributeError: If the specified field doesn't exist on the model.
+            ValueError: If the filter type is invalid.
         """
-        if not hasattr(orm_model, self.field):
-            raise AttributeError(
-                f"Field '{self.field}' does not exist on model '{orm_model.__name__}'"
-            )
-        if self.filter_type not in BinaryFilterType.get_all_operators():
-            raise ValueError(
-                f"Invalid filter type: {self.filter_type}. "
-                f"Valid filter types are: {', '.join(BinaryFilterType.get_all_operators())}"
-            )
+        self._validate_field_exists(orm_model, self.field)
+        self._validate_enum_value(
+            self.filter_type, BinaryFilterType.get_all_operators(), "filter type"
+        )
 
         model_field = getattr(orm_model, self.field)
 
@@ -110,25 +106,25 @@ class GenericBinaryCriteria(SqlFilterCriteriaBase):
                 alias=self.alias,
                 description=self.description,
             ),
-        ) -> list[ColumnElement]:
+        ) -> Optional[ColumnElement]:
             """Generate binary filter conditions.
 
             Args:
                 apply_filter (bool): Whether to apply the binary filter.
 
             Returns:
-                list: List of SQLAlchemy filter conditions.
+                Optional[ColumnElement]: SQLAlchemy filter condition or None if no filter is applied.
             """
             if not apply_filter:
-                return []
+                return None
 
             if self.filter_type == BinaryFilterType.IS_TRUE:
-                return [model_field.is_(True)]
+                return model_field.is_(True)
             elif self.filter_type == BinaryFilterType.IS_FALSE:
-                return [model_field.is_(False)]
+                return model_field.is_(False)
             elif self.filter_type == BinaryFilterType.IS_NONE:
-                return [model_field.is_(None)]
+                return model_field.is_(None)
             else:  # IS_NOT_NONE
-                return [model_field.isnot(None)]
+                return model_field.isnot(None)
 
         return filter_dependency

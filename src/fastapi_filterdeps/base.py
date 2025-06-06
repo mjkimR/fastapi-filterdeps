@@ -1,6 +1,6 @@
 import abc
 import inspect
-from typing import Optional, Type, Any, Union, List, Callable
+from typing import Optional, Type, Any, Union, Callable, Sequence
 
 
 from sqlalchemy import Column, ColumnElement, Sequence
@@ -18,7 +18,7 @@ class SqlFilterCriteriaBase:
     @abc.abstractmethod
     def build_filter(
         self, orm_model: type[DeclarativeBase]
-    ) -> Callable[..., Optional[Union[ColumnElement, List[ColumnElement]]]]:
+    ) -> Callable[..., Optional[Union[ColumnElement, list[ColumnElement]]]]:
         """Build a filter dependency for a given ORM model.
 
         Args:
@@ -28,6 +28,73 @@ class SqlFilterCriteriaBase:
             callable: A FastAPI dependency function that returns SQLAlchemy filter conditions.
         """
         raise NotImplementedError
+
+    def _validate_field_exists(
+        self, orm_model: type[DeclarativeBase], field: str
+    ) -> None:
+        """Validate that a field exists on the model.
+
+        Args:
+            orm_model (type[DeclarativeBase]): The SQLAlchemy model class to check.
+            field (str): The field name to validate.
+
+        Raises:
+            AttributeError: If the field doesn't exist on the model.
+        """
+        if not hasattr(orm_model, field):
+            raise AttributeError(
+                f"Field '{field}' does not exist on model '{orm_model.__name__}'"
+            )
+
+    def _validate_enum_value(
+        self, value: str, valid_values: set[str], field_name: str
+    ) -> None:
+        """Validate that an enum value is valid.
+
+        Args:
+            value (str): The value to validate.
+            valid_values (set[str]): Set of valid values.
+            field_name (str): Name of the field for error messages.
+
+        Raises:
+            ValueError: If the value is not in valid_values.
+        """
+        if value not in valid_values:
+            raise ValueError(
+                f"Invalid {field_name}: {value}. "
+                f"Valid values are: {', '.join(sorted(valid_values))}"
+            )
+
+    def _validate_model_has_primary_keys(
+        self, orm_model: type[DeclarativeBase]
+    ) -> None:
+        """Validate that a model has primary keys.
+
+        Args:
+            orm_model (type[DeclarativeBase]): The SQLAlchemy model class to check.
+
+        Raises:
+            ValueError: If the model doesn't have primary keys.
+        """
+        try:
+            pk_columns = self._get_primary_keys(orm_model)
+            if not pk_columns:
+                raise ValueError(
+                    f"Model '{orm_model.__name__}' must have primary key(s)"
+                )
+        except Exception as e:
+            raise ValueError(f"Failed to get primary keys: {str(e)}")
+
+    def _get_default_description(self) -> str:
+        """Get default description for the filter.
+
+        This method should be overridden by subclasses to provide specific descriptions.
+        The base implementation provides a generic description.
+
+        Returns:
+            str: Default description based on the filter configuration
+        """
+        return f"Filter by field '{self.field}'"
 
     @classmethod
     def _get_primary_keys(cls, model: type[DeclarativeBase]) -> Sequence[Column]:

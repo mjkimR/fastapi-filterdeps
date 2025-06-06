@@ -1,6 +1,6 @@
 from typing import Callable
 import pytest
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, select, Boolean, JSON
 from sqlalchemy.orm import sessionmaker
 from fastapi import FastAPI, Depends
 from fastapi.testclient import TestClient
@@ -29,6 +29,11 @@ class TestModel(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(UTC)
     )
+
+    count: Mapped[int] = mapped_column(Integer, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=True)
+    status: Mapped[str] = mapped_column(String(50), nullable=True)
+    detail: Mapped[dict] = mapped_column(JSON, nullable=True)
 
 
 @pytest.fixture(scope="function")
@@ -89,11 +94,39 @@ class BaseFilterTest:
         db_session.commit()
 
     def build_test_data(self):
-        """Build test data."""
+        """Build test data.
+
+        This is a base implementation that should be overridden by test classes
+        that need specific test data.
+        """
         return [
-            TestModel(name="Item 1", category="A", value=100),
-            TestModel(name="Item 2", category="A", value=200),
-            TestModel(name="Item 3", category="B", value=150),
+            TestModel(
+                name="Item 1",
+                category="A",
+                value=100,
+                count=10,
+                is_active=True,
+                status="active",
+                detail={"settings": {"theme": "light"}},
+            ),
+            TestModel(
+                name="Item 2",
+                category="A",
+                value=200,
+                count=20,
+                is_active=False,
+                status="inactive",
+                detail={"settings": {"theme": "dark"}},
+            ),
+            TestModel(
+                name="Item 3",
+                category="B",
+                value=150,
+                count=15,
+                is_active=None,
+                status="pending",
+                detail={"settings": {"theme": "custom"}},
+            ),
         ]
 
     def setup_filter(self, filter_deps: Callable):

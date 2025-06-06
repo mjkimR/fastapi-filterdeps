@@ -1,16 +1,20 @@
+from typing import Callable
 import pytest
-from sqlalchemy import create_engine, String, Integer, select
-from sqlalchemy.orm import sessionmaker, mapped_column, Mapped, DeclarativeBase, Session
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import sessionmaker
 from fastapi import FastAPI, Depends
 from fastapi.testclient import TestClient
-from typing import List, Callable
 import logging
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy import Integer, String, DateTime
+from datetime import datetime, UTC
+from sqlalchemy.pool import StaticPool
+
 
 # Configure logging
-logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
+logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 
 
-# Define test model
 class Base(DeclarativeBase):
     pass
 
@@ -22,56 +26,81 @@ class TestModel(Base):
     name: Mapped[str] = mapped_column(String(50))
     category: Mapped[str] = mapped_column(String(50))
     value: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(UTC)
+    )
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def engine():
-    """Creates a test SQLite database engine."""
-    engine = create_engine("sqlite:///test.db", echo=True)
+    """Test SQLite database engine fixture."""
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     Base.metadata.create_all(engine)
     yield engine
     Base.metadata.drop_all(engine)
 
 
 @pytest.fixture(scope="function")
-def test_data():
-    """Provides test data for the test cases"""
-    return [
-        TestModel(name="Item 1", category="A", value=100),
-        TestModel(name="Item 2", category="A", value=200),
-        TestModel(name="Item 3", category="B", value=150),
-        TestModel(name="Item 4", category="B", value=300),
-    ]
-
-
-@pytest.fixture(scope="function")
-def db_session(engine, test_data):
-    """Creates a test database session."""
+def db_session(engine):
+    """Database session fixture for testing."""
     Session = sessionmaker(bind=engine)
     session = Session()
-
-    # Add test data
-    session.add_all(test_data)
-    session.commit()
-
     yield session
-
-    # Clean up test data
-    session.query(TestModel).delete()
-    session.commit()
     session.close()
 
 
-def generate_app_client(filter_deps: Callable, db_session: Session):
+@pytest.fixture(scope="function")
+def test_app(db_session):
+    """FastAPI test application fixture."""
     app = FastAPI()
 
     def get_db():
         yield db_session
 
-    @app.get("/test-items", response_model=List[dict])
-    async def get_items(db=Depends(get_db), filters=Depends(filter_deps)):
-        stmt = select(TestModel).where(*filters)
-        result = db.execute(stmt).scalars().all()
-        return [{"id": r.id, "name": r.name, "category": r.category, "value": r.value} for r in result]
+    app.dependency_overrides[get_db] = get_db
+    return app
 
-    return TestClient(app)
+
+@pytest.fixture(scope="function")
+def test_client(test_app):
+    """FastAPI test client fixture."""
+    return TestClient(test_app)
+
+
+class BaseFilterTest:
+    @pytest.fixture(autouse=True, scope="function")
+    def setup(self, test_app, test_client, db_session):
+        """Setup test environment."""
+        self.app = test_app
+        self.client = test_client
+        self.session = db_session
+        self.test_data = self.build_test_data()
+
+        db_session.add_all(self.test_data)
+        db_session.commit()
+
+        yield
+
+        db_session.query(TestModel).delete()
+        db_session.commit()
+
+    def build_test_data(self):
+        """Build test data."""
+        return [
+            TestModel(name="Item 1", category="A", value=100),
+            TestModel(name="Item 2", category="A", value=200),
+            TestModel(name="Item 3", category="B", value=150),
+        ]
+
+    def setup_filter(self, filter_deps: Callable):
+        """Setup filter dependency."""
+
+        @self.app.get("/test-items")
+        async def test_endpoint(filters=Depends(filter_deps)):
+            stmt = select(TestModel).where(*filters)
+            result = self.session.execute(stmt).scalars().all()
+            return result

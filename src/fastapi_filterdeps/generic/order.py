@@ -24,7 +24,7 @@ class OrderType(str, Enum):
         return set(op.value for op in cls)
 
 
-class GenericOrderCriteria(SqlFilterCriteriaBase):
+class OrderCriteria(SqlFilterCriteriaBase):
     """Base filter for getting instances with maximum/minimum values.
 
     Provides filtering capabilities to get instances that have the maximum
@@ -47,7 +47,7 @@ class GenericOrderCriteria(SqlFilterCriteriaBase):
     Examples:
         # Get most expensive product per category
         # If multiple products have the same price, ordering by PK ensures consistency
-        max_price_filter = GenericOrderCriteria(
+        max_price_filter = OrderCriteria(
             field="price",
             partition_by=["category_id"],
             order_type=OrderType.MAX
@@ -55,7 +55,7 @@ class GenericOrderCriteria(SqlFilterCriteriaBase):
 
         # Get oldest order per customer
         # If multiple orders have the same timestamp, they'll be ordered by PK
-        oldest_order_filter = GenericOrderCriteria(
+        oldest_order_filter = OrderCriteria(
             field="created_at",
             partition_by=["customer_id"],
             order_type=OrderType.MIN
@@ -63,14 +63,14 @@ class GenericOrderCriteria(SqlFilterCriteriaBase):
 
         # Get latest status update per ticket
         # Primary key ordering ensures consistent results for simultaneous updates
-        latest_status_filter = GenericOrderCriteria(
+        latest_status_filter = OrderCriteria(
             field="updated_at",
             partition_by=["ticket_id"],
             order_type=OrderType.MAX
         )
 
         # Get most recent record per user without partitioning
-        latest_record_filter = GenericOrderCriteria(
+        latest_record_filter = OrderCriteria(
             field="updated_at",
             order_type=OrderType.MAX
         )

@@ -31,7 +31,7 @@ class StringMatchType(str, Enum):
         return set(op.value for op in cls)
 
 
-class GenericStringCriteria(SqlFilterCriteriaBase):
+class StringCriteria(SqlFilterCriteriaBase):
     """Base filter for string matching with multiple strategies.
 
     Provides a generic implementation for filtering strings using various matching
@@ -46,7 +46,7 @@ class GenericStringCriteria(SqlFilterCriteriaBase):
 
     Examples:
         # Search users by name (case-insensitive partial match)
-        name_search = GenericStringCriteria(
+        name_search = StringCriteria(
             field="name",
             alias="name_search",
             match_type=StringMatchType.CONTAINS,
@@ -54,7 +54,7 @@ class GenericStringCriteria(SqlFilterCriteriaBase):
         )
 
         # Filter products by SKU prefix (case-sensitive)
-        sku_filter = GenericStringCriteria(
+        sku_filter = StringCriteria(
             field="sku",
             alias="sku_prefix",
             match_type=StringMatchType.PREFIX,
@@ -63,7 +63,7 @@ class GenericStringCriteria(SqlFilterCriteriaBase):
         )
 
         # Filter files by extension (case-insensitive suffix)
-        file_filter = GenericStringCriteria(
+        file_filter = StringCriteria(
             field="filename",
             alias="extension",
             match_type=StringMatchType.SUFFIX,
@@ -71,7 +71,7 @@ class GenericStringCriteria(SqlFilterCriteriaBase):
         )
 
         # Exclude items by exact tag match
-        tag_filter = GenericStringCriteria(
+        tag_filter = StringCriteria(
             field="tag",
             alias="exclude_tag",
             match_type=StringMatchType.NOT_EQUAL,
@@ -190,7 +190,7 @@ class GenericStringCriteria(SqlFilterCriteriaBase):
         return filter_dependency
 
 
-class GenericStringSetCriteria(SqlFilterCriteriaBase):
+class StringSetCriteria(SqlFilterCriteriaBase):
     """Base filter for string field set operations.
 
     Provides a generic implementation for filtering string fields using
@@ -205,7 +205,7 @@ class GenericStringSetCriteria(SqlFilterCriteriaBase):
 
     Examples:
         # Filter users by allowed domains
-        domain_filter = GenericStringSetCriteria(
+        domain_filter = StringSetCriteria(
             field="email_domain",
             alias="allowed_domains",
             exclude=False,
@@ -213,7 +213,7 @@ class GenericStringSetCriteria(SqlFilterCriteriaBase):
         )
 
         # Filter products by excluded categories
-        category_filter = GenericStringSetCriteria(
+        category_filter = StringSetCriteria(
             field="category",
             alias="excluded_categories",
             exclude=True,
@@ -221,7 +221,7 @@ class GenericStringSetCriteria(SqlFilterCriteriaBase):
         )
 
         # Filter posts by tags
-        tag_filter = GenericStringSetCriteria(
+        tag_filter = StringSetCriteria(
             field="tag",
             alias="post_tags",
             exclude=False,

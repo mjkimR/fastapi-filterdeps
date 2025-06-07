@@ -1,16 +1,16 @@
 from fastapi_filterdeps.base import create_combined_filter_dependency
 from fastapi_filterdeps.generic.string import (
-    GenericStringCriteria,
-    GenericStringSetCriteria,
+    StringCriteria,
+    StringSetCriteria,
     StringMatchType,
 )
 from tests.conftest import BaseFilterTest, TestModel
 
 
-class TestGenericStringCriteria(BaseFilterTest):
+class TestStringCriteria(BaseFilterTest):
     def test_filter_string_exact(self):
         filter_deps = create_combined_filter_dependency(
-            GenericStringCriteria(
+            StringCriteria(
                 field="name", alias="name", match_type=StringMatchType.EXACT
             ),
             orm_model=TestModel,
@@ -23,7 +23,7 @@ class TestGenericStringCriteria(BaseFilterTest):
 
     def test_filter_string_contains(self):
         filter_deps = create_combined_filter_dependency(
-            GenericStringCriteria(
+            StringCriteria(
                 field="name",
                 alias="name",
                 match_type=StringMatchType.CONTAINS,
@@ -37,10 +37,10 @@ class TestGenericStringCriteria(BaseFilterTest):
         assert all("item" in item["name"].lower() for item in response.json())
 
 
-class TestGenericStringSetCriteria(BaseFilterTest):
+class TestStringSetCriteria(BaseFilterTest):
     def test_filter_string_set_exact(self):
         filter_deps = create_combined_filter_dependency(
-            GenericStringSetCriteria(field="name", alias="name"),
+            StringSetCriteria(field="name", alias="name"),
             orm_model=TestModel,
         )
         self.setup_filter(filter_deps=filter_deps)

@@ -2,14 +2,14 @@ from datetime import datetime, timedelta, UTC
 from dateutil.relativedelta import relativedelta
 from fastapi_filterdeps.base import create_combined_filter_dependency
 from fastapi_filterdeps.generic.time import (
-    GenericTimeRangeCriteria,
-    GenericRelativeTimeCriteria,
+    TimeRangeCriteria,
+    RelativeTimeCriteria,
     TimeUnit,
 )
 from tests.conftest import BaseFilterTest, TestModel
 
 
-class TestGenericTimeRangeCriteria(BaseFilterTest):
+class TestTimeRangeCriteria(BaseFilterTest):
     def build_test_data(self):
         now = datetime.now(UTC)
         return [
@@ -36,7 +36,7 @@ class TestGenericTimeRangeCriteria(BaseFilterTest):
 
     def test_filter_time_range_inclusive(self):
         filter_deps = create_combined_filter_dependency(
-            GenericTimeRangeCriteria(
+            TimeRangeCriteria(
                 field="created_at",
                 include_start_bound=True,
                 include_end_bound=True,
@@ -66,7 +66,7 @@ class TestGenericTimeRangeCriteria(BaseFilterTest):
 
     def test_filter_time_range_exclusive(self):
         filter_deps = create_combined_filter_dependency(
-            GenericTimeRangeCriteria(
+            TimeRangeCriteria(
                 field="created_at",
                 include_start_bound=False,
                 include_end_bound=False,
@@ -94,7 +94,7 @@ class TestGenericTimeRangeCriteria(BaseFilterTest):
 
     def test_filter_time_range_start_only(self):
         filter_deps = create_combined_filter_dependency(
-            GenericTimeRangeCriteria(
+            TimeRangeCriteria(
                 field="created_at",
                 include_start_bound=True,
                 include_end_bound=True,
@@ -117,7 +117,7 @@ class TestGenericTimeRangeCriteria(BaseFilterTest):
 
     def test_filter_time_range_mixed_bounds(self):
         filter_deps = create_combined_filter_dependency(
-            GenericTimeRangeCriteria(
+            TimeRangeCriteria(
                 field="created_at",
                 include_start_bound=True,
                 include_end_bound=False,
@@ -146,7 +146,7 @@ class TestGenericTimeRangeCriteria(BaseFilterTest):
         )
 
 
-class TestGenericRelativeTimeCriteria(BaseFilterTest):
+class TestRelativeTimeCriteria(BaseFilterTest):
     def build_test_data(self):
         now = datetime.now(UTC)
         return [
@@ -178,7 +178,7 @@ class TestGenericRelativeTimeCriteria(BaseFilterTest):
 
     def test_filter_relative_time_days(self):
         filter_deps = create_combined_filter_dependency(
-            GenericRelativeTimeCriteria(
+            RelativeTimeCriteria(
                 field="created_at",
                 include_start_bound=True,
                 include_end_bound=True,
@@ -208,7 +208,7 @@ class TestGenericRelativeTimeCriteria(BaseFilterTest):
 
     def test_filter_relative_time_weeks(self):
         filter_deps = create_combined_filter_dependency(
-            GenericRelativeTimeCriteria(
+            RelativeTimeCriteria(
                 field="created_at",
                 include_start_bound=True,
                 include_end_bound=True,
@@ -238,7 +238,7 @@ class TestGenericRelativeTimeCriteria(BaseFilterTest):
 
     def test_filter_relative_time_months(self):
         filter_deps = create_combined_filter_dependency(
-            GenericRelativeTimeCriteria(
+            RelativeTimeCriteria(
                 field="created_at",
                 include_start_bound=True,
                 include_end_bound=True,
@@ -268,7 +268,7 @@ class TestGenericRelativeTimeCriteria(BaseFilterTest):
 
     def test_filter_relative_time_years(self):
         filter_deps = create_combined_filter_dependency(
-            GenericRelativeTimeCriteria(
+            RelativeTimeCriteria(
                 field="created_at",
                 include_start_bound=True,
                 include_end_bound=True,
@@ -292,7 +292,7 @@ class TestGenericRelativeTimeCriteria(BaseFilterTest):
 
     def test_filter_relative_time_exclusive_bounds(self):
         filter_deps = create_combined_filter_dependency(
-            GenericRelativeTimeCriteria(
+            RelativeTimeCriteria(
                 field="created_at",
                 include_start_bound=False,
                 include_end_bound=False,
@@ -322,7 +322,7 @@ class TestGenericRelativeTimeCriteria(BaseFilterTest):
 
     def test_filter_relative_time_mixed_bounds(self):
         filter_deps = create_combined_filter_dependency(
-            GenericRelativeTimeCriteria(
+            RelativeTimeCriteria(
                 field="created_at",
                 include_start_bound=True,
                 include_end_bound=False,

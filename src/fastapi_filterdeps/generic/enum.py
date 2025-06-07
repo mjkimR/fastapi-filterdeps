@@ -7,7 +7,7 @@ from sqlalchemy.orm import DeclarativeBase
 from fastapi_filterdeps.base import SqlFilterCriteriaBase
 
 
-class GenericEnumCriteria(SqlFilterCriteriaBase):
+class EnumCriteria(SqlFilterCriteriaBase):
     """Base filter for Enum field matching.
 
     Provides a generic implementation for filtering fields that use Enum types.
@@ -30,7 +30,7 @@ class GenericEnumCriteria(SqlFilterCriteriaBase):
         ...     CANCELLED = "cancelled"
         >>>
         >>> # Filter orders by status
-        >>> status_filter = GenericEnumCriteria(
+        >>> status_filter = EnumCriteria(
         ...     field="status",
         ...     alias="order_status",
         ...     enum_class=OrderStatus
@@ -42,7 +42,7 @@ class GenericEnumCriteria(SqlFilterCriteriaBase):
         ...     MEDIUM = "medium"
         ...     HIGH = "high"
         >>>
-        >>> priority_filter = GenericEnumCriteria(
+        >>> priority_filter = EnumCriteria(
         ...     field="priority",
         ...     alias="task_priority",
         ...     enum_class=Priority,
@@ -119,7 +119,7 @@ class GenericEnumCriteria(SqlFilterCriteriaBase):
         return filter_dependency
 
 
-class GenericMultiEnumCriteria(SqlFilterCriteriaBase):
+class MultiEnumCriteria(SqlFilterCriteriaBase):
     """Base filter for multiple Enum value matching.
 
     Provides a generic implementation for filtering fields that can match
@@ -142,7 +142,7 @@ class GenericMultiEnumCriteria(SqlFilterCriteriaBase):
         ...     VIEWER = "viewer"
         >>>
         >>> # Filter users by multiple roles
-        >>> role_filter = GenericMultiEnumCriteria(
+        >>> role_filter = MultiEnumCriteria(
         ...     field="role",
         ...     alias="user_roles",
         ...     enum_class=UserRole
@@ -155,7 +155,7 @@ class GenericMultiEnumCriteria(SqlFilterCriteriaBase):
         ...     BOOKS = "books"
         ...     FOOD = "food"
         >>>
-        >>> category_filter = GenericMultiEnumCriteria(
+        >>> category_filter = MultiEnumCriteria(
         ...     field="category",
         ...     alias="product_categories",
         ...     enum_class=ProductCategory,

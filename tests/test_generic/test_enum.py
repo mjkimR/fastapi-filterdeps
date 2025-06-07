@@ -1,8 +1,8 @@
 from enum import Enum
 from fastapi_filterdeps.base import create_combined_filter_dependency
 from fastapi_filterdeps.generic.enum import (
-    GenericEnumCriteria,
-    GenericMultiEnumCriteria,
+    EnumCriteria,
+    MultiEnumCriteria,
 )
 from tests.conftest import BaseFilterTest, TestModel
 
@@ -13,10 +13,10 @@ class TestStatus(str, Enum):
     PENDING = "pending"
 
 
-class TestGenericEnumCriteria(BaseFilterTest):
+class TestEnumCriteria(BaseFilterTest):
     def test_filter_enum_single(self):
         filter_deps = create_combined_filter_dependency(
-            GenericEnumCriteria(
+            EnumCriteria(
                 field="status",
                 alias="status",
                 enum_class=TestStatus,
@@ -31,7 +31,7 @@ class TestGenericEnumCriteria(BaseFilterTest):
 
     def test_filter_enum_none(self):
         filter_deps = create_combined_filter_dependency(
-            GenericEnumCriteria(
+            EnumCriteria(
                 field="status",
                 alias="status",
                 enum_class=TestStatus,
@@ -44,10 +44,10 @@ class TestGenericEnumCriteria(BaseFilterTest):
         assert len(response.json()) > 0
 
 
-class TestGenericMultiEnumCriteria(BaseFilterTest):
+class TestMultiEnumCriteria(BaseFilterTest):
     def test_filter_enum_multiple(self):
         filter_deps = create_combined_filter_dependency(
-            GenericMultiEnumCriteria(
+            MultiEnumCriteria(
                 field="status",
                 alias="status",
                 enum_class=TestStatus,
@@ -64,7 +64,7 @@ class TestGenericMultiEnumCriteria(BaseFilterTest):
 
     def test_filter_enum_empty_list(self):
         filter_deps = create_combined_filter_dependency(
-            GenericMultiEnumCriteria(
+            MultiEnumCriteria(
                 field="status",
                 alias="status",
                 enum_class=TestStatus,

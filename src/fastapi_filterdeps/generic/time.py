@@ -27,7 +27,7 @@ class TimeUnit(str, Enum):
     YEAR = "year"
 
 
-class GenericTimeRangeCriteria(SqlFilterCriteriaBase):
+class TimeRangeCriteria(SqlFilterCriteriaBase):
     """Base filter for explicit time range filtering.
 
     Provides filtering for datetime fields using explicit start and end dates.
@@ -42,7 +42,7 @@ class GenericTimeRangeCriteria(SqlFilterCriteriaBase):
 
     Examples:
         # Filter orders by creation date range (inclusive bounds)
-        order_date_filter = GenericTimeRangeCriteria(
+        order_date_filter = TimeRangeCriteria(
             field="created_at",
             start_alias="order_from",
             end_alias="order_to",
@@ -51,7 +51,7 @@ class GenericTimeRangeCriteria(SqlFilterCriteriaBase):
         )
 
         # Filter events by time range (exclusive bounds)
-        event_time_filter = GenericTimeRangeCriteria(
+        event_time_filter = TimeRangeCriteria(
             field="event_time",
             start_alias="after",
             end_alias="before",
@@ -60,7 +60,7 @@ class GenericTimeRangeCriteria(SqlFilterCriteriaBase):
         )
 
         # Filter logs by timestamp with custom description
-        log_filter = GenericTimeRangeCriteria(
+        log_filter = TimeRangeCriteria(
             field="timestamp",
             description="Filter log entries by time range"
         )
@@ -169,7 +169,7 @@ class GenericTimeRangeCriteria(SqlFilterCriteriaBase):
         return filter_dependency
 
 
-class GenericRelativeTimeCriteria(SqlFilterCriteriaBase):
+class RelativeTimeCriteria(SqlFilterCriteriaBase):
     """Base filter for relative time filtering.
 
     Provides filtering for datetime fields using a reference date and offset.
@@ -185,7 +185,7 @@ class GenericRelativeTimeCriteria(SqlFilterCriteriaBase):
 
     Examples:
         # Filter orders from last 7 days
-        recent_orders_filter = GenericRelativeTimeCriteria(
+        recent_orders_filter = RelativeTimeCriteria(
             field="created_at",
             reference_alias="from_date",
             unit_alias="time_unit",
@@ -193,7 +193,7 @@ class GenericRelativeTimeCriteria(SqlFilterCriteriaBase):
         )
 
         # Filter events from last month (exclusive bounds)
-        monthly_events_filter = GenericRelativeTimeCriteria(
+        monthly_events_filter = RelativeTimeCriteria(
             field="event_time",
             include_start_bound=False,
             include_end_bound=False,
@@ -201,7 +201,7 @@ class GenericRelativeTimeCriteria(SqlFilterCriteriaBase):
         )
 
         # Filter user activity with custom time unit
-        activity_filter = GenericRelativeTimeCriteria(
+        activity_filter = RelativeTimeCriteria(
             field="last_active",
             unit_alias="inactive_period_unit",
             offset_alias="inactive_period"

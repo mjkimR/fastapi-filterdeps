@@ -1,15 +1,15 @@
 from fastapi_filterdeps.base import create_combined_filter_dependency
 from fastapi_filterdeps.generic.order import (
-    GenericOrderCriteria,
+    OrderCriteria,
     OrderType,
 )
 from tests.conftest import BaseFilterTest, TestModel
 
 
-class TestGenericOrderCriteria(BaseFilterTest):
+class TestOrderCriteria(BaseFilterTest):
     def test_filter_max_global(self):
         filter_deps = create_combined_filter_dependency(
-            GenericOrderCriteria(
+            OrderCriteria(
                 field="count",
                 order_type=OrderType.MAX,
             ),
@@ -25,7 +25,7 @@ class TestGenericOrderCriteria(BaseFilterTest):
 
     def test_filter_min_global(self):
         filter_deps = create_combined_filter_dependency(
-            GenericOrderCriteria(
+            OrderCriteria(
                 field="count",
                 order_type=OrderType.MIN,
             ),
@@ -41,7 +41,7 @@ class TestGenericOrderCriteria(BaseFilterTest):
 
     def test_filter_max_partitioned(self):
         filter_deps = create_combined_filter_dependency(
-            GenericOrderCriteria(
+            OrderCriteria(
                 field="count",
                 partition_by=["category"],
                 order_type=OrderType.MAX,
@@ -64,7 +64,7 @@ class TestGenericOrderCriteria(BaseFilterTest):
 
     def test_filter_min_partitioned(self):
         filter_deps = create_combined_filter_dependency(
-            GenericOrderCriteria(
+            OrderCriteria(
                 field="count",
                 partition_by=["category"],
                 order_type=OrderType.MIN,
@@ -87,7 +87,7 @@ class TestGenericOrderCriteria(BaseFilterTest):
 
     def test_filter_disabled(self):
         filter_deps = create_combined_filter_dependency(
-            GenericOrderCriteria(
+            OrderCriteria(
                 field="count",
                 order_type=OrderType.MAX,
             ),

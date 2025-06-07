@@ -28,7 +28,7 @@ class BinaryFilterType(str, Enum):
         return set(op.value for op in cls)
 
 
-class GenericBinaryCriteria(SqlFilterCriteriaBase):
+class BinaryCriteria(SqlFilterCriteriaBase):
     """Base filter for binary conditions.
 
     Provides filtering for boolean fields and null checks.
@@ -46,21 +46,21 @@ class GenericBinaryCriteria(SqlFilterCriteriaBase):
 
     Examples:
         # Filter active users
-        active_filter = GenericBinaryCriteria(
+        active_filter = BinaryCriteria(
             field="is_active",
             alias="active_only",
             filter_type=BinaryFilterType.IS_TRUE
         )
 
         # Filter incomplete tasks
-        incomplete_filter = GenericBinaryCriteria(
+        incomplete_filter = BinaryCriteria(
             field="completed",
             alias="show_incomplete",
             filter_type=BinaryFilterType.IS_FALSE
         )
 
         # Filter users with verified email
-        verified_filter = GenericBinaryCriteria(
+        verified_filter = BinaryCriteria(
             field="email_verified_at",
             alias="verified_only",
             filter_type=BinaryFilterType.IS_NOT_NONE,

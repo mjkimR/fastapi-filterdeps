@@ -11,7 +11,7 @@ from fastapi_filterdeps.exceptions import InvalidValueError
 NumericType = TypeVar("NumericType", bound=Union[int, float])
 
 
-class GenericNumericRangeCriteria(SqlFilterCriteriaBase):
+class NumericRangeCriteria(SqlFilterCriteriaBase):
     """Base filter for numeric field range operations.
 
     Provides a generic implementation for filtering numeric fields using
@@ -29,7 +29,7 @@ class GenericNumericRangeCriteria(SqlFilterCriteriaBase):
 
     Examples:
         # Filter products by price range (inclusive bounds)
-        price_range_filter = GenericNumericRangeCriteria(
+        price_range_filter = NumericRangeCriteria(
             field="price",
             min_alias="min_price",
             max_alias="max_price",
@@ -40,7 +40,7 @@ class GenericNumericRangeCriteria(SqlFilterCriteriaBase):
         )
 
         # Filter users by age range (exclusive bounds)
-        age_range_filter = GenericNumericRangeCriteria(
+        age_range_filter = NumericRangeCriteria(
             field="age",
             min_alias="min_age",
             max_alias="max_age",
@@ -51,7 +51,7 @@ class GenericNumericRangeCriteria(SqlFilterCriteriaBase):
         )
 
         # Filter items outside a specific quantity range
-        quantity_range_filter = GenericNumericRangeCriteria(
+        quantity_range_filter = NumericRangeCriteria(
             field="quantity",
             min_alias="exclude_min_qty",
             max_alias="exclude_max_qty",
@@ -197,7 +197,7 @@ class GenericNumericRangeCriteria(SqlFilterCriteriaBase):
         return filter_dependency
 
 
-class GenericNumericExactCriteria(SqlFilterCriteriaBase):
+class NumericExactCriteria(SqlFilterCriteriaBase):
     """Base filter for exact numeric field matching.
 
     Provides a generic implementation for filtering numeric fields using
@@ -212,14 +212,14 @@ class GenericNumericExactCriteria(SqlFilterCriteriaBase):
 
     Examples:
         # Filter products by exact price
-        exact_price_filter = GenericNumericExactCriteria(
+        exact_price_filter = NumericExactCriteria(
             field="price",
             alias="exact_price",
             numeric_type=float
         )
 
         # Filter orders by quantity not equal to specific value
-        exclude_quantity_filter = GenericNumericExactCriteria(
+        exclude_quantity_filter = NumericExactCriteria(
             field="quantity",
             alias="exclude_qty",
             numeric_type=int,
@@ -227,7 +227,7 @@ class GenericNumericExactCriteria(SqlFilterCriteriaBase):
         )
 
         # Filter ratings by exact score
-        rating_filter = GenericNumericExactCriteria(
+        rating_filter = NumericExactCriteria(
             field="score",
             alias="rating",
             numeric_type=float,

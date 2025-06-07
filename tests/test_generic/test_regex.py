@@ -1,14 +1,14 @@
 from fastapi_filterdeps.base import create_combined_filter_dependency
 from fastapi_filterdeps.generic.regex import (
-    GenericRegexCriteria,
+    RegexCriteria,
 )
 from tests.conftest import BaseFilterTest, TestModel
 
 
-class TestGenericRegexCriteria(BaseFilterTest):
+class TestRegexCriteria(BaseFilterTest):
     def test_filter_regex_case_sensitive(self):
         filter_deps = create_combined_filter_dependency(
-            GenericRegexCriteria(
+            RegexCriteria(
                 field="name",
                 alias="name_pattern",
                 case_sensitive=True,
@@ -23,7 +23,7 @@ class TestGenericRegexCriteria(BaseFilterTest):
 
     def test_filter_regex_case_insensitive(self):
         filter_deps = create_combined_filter_dependency(
-            GenericRegexCriteria(
+            RegexCriteria(
                 field="name",
                 alias="name_pattern",
                 case_sensitive=False,
@@ -38,7 +38,7 @@ class TestGenericRegexCriteria(BaseFilterTest):
 
     def test_filter_regex_none(self):
         filter_deps = create_combined_filter_dependency(
-            GenericRegexCriteria(
+            RegexCriteria(
                 field="name",
                 alias="name_pattern",
             ),

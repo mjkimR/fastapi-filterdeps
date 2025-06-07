@@ -1,15 +1,15 @@
 from fastapi_filterdeps.base import create_combined_filter_dependency
 from fastapi_filterdeps.generic.binary import (
-    GenericBinaryCriteria,
+    BinaryCriteria,
     BinaryFilterType,
 )
 from tests.conftest import BaseFilterTest, TestModel
 
 
-class TestGenericBinaryCriteria(BaseFilterTest):
+class TestBinaryCriteria(BaseFilterTest):
     def test_filter_is_true(self):
         filter_deps = create_combined_filter_dependency(
-            GenericBinaryCriteria(
+            BinaryCriteria(
                 field="is_active",
                 alias="is_active",
                 filter_type=BinaryFilterType.IS_TRUE,
@@ -24,7 +24,7 @@ class TestGenericBinaryCriteria(BaseFilterTest):
 
     def test_filter_is_false(self):
         filter_deps = create_combined_filter_dependency(
-            GenericBinaryCriteria(
+            BinaryCriteria(
                 field="is_active",
                 alias="is_active",
                 filter_type=BinaryFilterType.IS_FALSE,
@@ -39,7 +39,7 @@ class TestGenericBinaryCriteria(BaseFilterTest):
 
     def test_filter_is_none(self):
         filter_deps = create_combined_filter_dependency(
-            GenericBinaryCriteria(
+            BinaryCriteria(
                 field="is_active", alias="is_null", filter_type=BinaryFilterType.IS_NONE
             ),
             orm_model=TestModel,
@@ -52,7 +52,7 @@ class TestGenericBinaryCriteria(BaseFilterTest):
 
     def test_filter_is_not_none(self):
         filter_deps = create_combined_filter_dependency(
-            GenericBinaryCriteria(
+            BinaryCriteria(
                 field="is_active",
                 alias="is_not_null",
                 filter_type=BinaryFilterType.IS_NOT_NONE,

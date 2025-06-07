@@ -6,7 +6,7 @@ from sqlalchemy.orm import DeclarativeBase
 from fastapi_filterdeps.base import SqlFilterCriteriaBase
 
 
-class GenericRegexCriteria(SqlFilterCriteriaBase):
+class RegexCriteria(SqlFilterCriteriaBase):
     """Base filter for regular expression matching.
 
     Provides a generic implementation for filtering with regular expressions.
@@ -21,7 +21,7 @@ class GenericRegexCriteria(SqlFilterCriteriaBase):
 
     Examples:
         # Filter users by email domain pattern
-        email_filter = GenericRegexCriteria(
+        email_filter = RegexCriteria(
             field="email",
             alias="email_pattern",
             case_sensitive=False,
@@ -29,14 +29,14 @@ class GenericRegexCriteria(SqlFilterCriteriaBase):
         )
 
         # Filter products by name with case-sensitive pattern
-        name_filter = GenericRegexCriteria(
+        name_filter = RegexCriteria(
             field="name",
             alias="name_pattern",
             case_sensitive=True
         )
 
         # Filter logs by message pattern
-        log_filter = GenericRegexCriteria(
+        log_filter = RegexCriteria(
             field="message",
             alias="log_pattern",
             case_sensitive=False,

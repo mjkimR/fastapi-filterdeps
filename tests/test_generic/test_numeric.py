@@ -1,12 +1,12 @@
 from fastapi_filterdeps.base import create_combined_filter_dependency
 from fastapi_filterdeps.generic.numeric import (
-    GenericNumericRangeCriteria,
-    GenericNumericExactCriteria,
+    NumericRangeCriteria,
+    NumericExactCriteria,
 )
 from tests.conftest import BaseFilterTest, TestModel
 
 
-class TestGenericNumericRangeCriteria(BaseFilterTest):
+class TestNumericRangeCriteria(BaseFilterTest):
     def build_test_data(self):
         """Build test data with values outside the 10-20 range."""
         return [
@@ -41,7 +41,7 @@ class TestGenericNumericRangeCriteria(BaseFilterTest):
 
     def test_filter_range_inclusive(self):
         filter_deps = create_combined_filter_dependency(
-            GenericNumericRangeCriteria(
+            NumericRangeCriteria(
                 field="count",
                 min_alias="min_count",
                 max_alias="max_count",
@@ -61,7 +61,7 @@ class TestGenericNumericRangeCriteria(BaseFilterTest):
 
     def test_filter_range_exclusive(self):
         filter_deps = create_combined_filter_dependency(
-            GenericNumericRangeCriteria(
+            NumericRangeCriteria(
                 field="count",
                 min_alias="min_count",
                 max_alias="max_count",
@@ -81,7 +81,7 @@ class TestGenericNumericRangeCriteria(BaseFilterTest):
 
     def test_filter_range_min_only(self):
         filter_deps = create_combined_filter_dependency(
-            GenericNumericRangeCriteria(
+            NumericRangeCriteria(
                 field="count",
                 min_alias="min_count",
                 max_alias="max_count",
@@ -99,7 +99,7 @@ class TestGenericNumericRangeCriteria(BaseFilterTest):
 
     def test_filter_range_exclude(self):
         filter_deps = create_combined_filter_dependency(
-            GenericNumericRangeCriteria(
+            NumericRangeCriteria(
                 field="count",
                 min_alias="min_count",
                 max_alias="max_count",
@@ -118,7 +118,7 @@ class TestGenericNumericRangeCriteria(BaseFilterTest):
 
     def test_filter_range_mixed_bounds(self):
         filter_deps = create_combined_filter_dependency(
-            GenericNumericRangeCriteria(
+            NumericRangeCriteria(
                 field="count",
                 min_alias="min_count",
                 max_alias="max_count",
@@ -137,10 +137,10 @@ class TestGenericNumericRangeCriteria(BaseFilterTest):
         assert all(10 <= item["count"] < 20 for item in response.json())
 
 
-class TestGenericNumericExactCriteria(BaseFilterTest):
+class TestNumericExactCriteria(BaseFilterTest):
     def test_filter_exact_match(self):
         filter_deps = create_combined_filter_dependency(
-            GenericNumericExactCriteria(
+            NumericExactCriteria(
                 field="count",
                 alias="count",
                 numeric_type=int,
@@ -155,7 +155,7 @@ class TestGenericNumericExactCriteria(BaseFilterTest):
 
     def test_filter_exact_exclude(self):
         filter_deps = create_combined_filter_dependency(
-            GenericNumericExactCriteria(
+            NumericExactCriteria(
                 field="count",
                 alias="count",
                 exclude=True,
@@ -171,7 +171,7 @@ class TestGenericNumericExactCriteria(BaseFilterTest):
 
     def test_filter_exact_none(self):
         filter_deps = create_combined_filter_dependency(
-            GenericNumericExactCriteria(
+            NumericExactCriteria(
                 field="count",
                 alias="count",
                 numeric_type=int,

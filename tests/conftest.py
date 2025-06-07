@@ -44,6 +44,7 @@ def engine():
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
+    # Make sure to create tables for Vote and Review models
     Base.metadata.create_all(engine)
     yield engine
     Base.metadata.drop_all(engine)

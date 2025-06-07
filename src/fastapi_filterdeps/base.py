@@ -79,7 +79,7 @@ class SqlFilterCriteriaBase:
             InvalidFieldError: If the model doesn't have primary keys.
         """
         try:
-            pk_columns = self._get_primary_keys(orm_model)
+            pk_columns = self.get_primary_keys(orm_model)
             if not pk_columns:
                 raise InvalidFieldError(
                     f"Model '{orm_model.__name__}' must have primary key(s)"
@@ -99,7 +99,7 @@ class SqlFilterCriteriaBase:
         return f"Filter by field '{self.field}'"
 
     @classmethod
-    def _get_primary_keys(cls, model: type[DeclarativeBase]) -> Sequence[Column]:
+    def get_primary_keys(cls, model: type[DeclarativeBase]) -> Sequence[Column]:
         """Get primary key columns for the given model.
 
         Args:

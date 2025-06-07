@@ -149,17 +149,12 @@ class OrderCriteria(SqlFilterCriteriaBase):
         else:
             order_by.append(model_field.asc())
 
-        # Try to add primary keys for consistent ordering
-        try:
-            pk_columns = self._get_primary_keys(orm_model)
-            if pk_columns:  # Only add if we actually got some PK columns
-                if self.order_type == OrderType.MAX:
-                    order_by.extend(pk.desc() for pk in pk_columns)
-                else:
-                    order_by.extend(pk.asc() for pk in pk_columns)
-        except Exception:
-            # If PK retrieval fails (no PK, or other issues), just continue with main field ordering
-            pass
+        # Add primary keys for consistent ordering
+        pk_columns = self.get_primary_keys(orm_model)
+        if self.order_type == OrderType.MAX:
+            order_by.extend(pk.desc() for pk in pk_columns)
+        else:
+            order_by.extend(pk.asc() for pk in pk_columns)
 
         return order_by
 
@@ -224,10 +219,10 @@ class OrderCriteria(SqlFilterCriteriaBase):
 
             # Filter using primary keys with IN clause
             pk_attrs = [
-                getattr(orm_model, pk.name) for pk in self._get_primary_keys(orm_model)
+                getattr(orm_model, pk.name) for pk in self.get_primary_keys(orm_model)
             ]
             subq_pk_attrs = [
-                getattr(subq.c, pk.name) for pk in self._get_primary_keys(orm_model)
+                getattr(subq.c, pk.name) for pk in self.get_primary_keys(orm_model)
             ]
 
             return tuple_(*pk_attrs).in_(

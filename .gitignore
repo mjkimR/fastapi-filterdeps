@@ -17,3 +17,4 @@ wheels/
 .env
 .test*
 .*.md
+.pytest_cache

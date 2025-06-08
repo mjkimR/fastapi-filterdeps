@@ -6,32 +6,33 @@ from fastapi_filterdeps.generic.time import (
     RelativeTimeCriteria,
     TimeUnit,
 )
-from tests.conftest import BaseFilterTest, TestModel
+from tests.conftest import BaseFilterTest
+from tests.models import BasicModel
 
 
 class TestTimeRangeCriteria(BaseFilterTest):
     def build_test_data(self):
         now = datetime.now(UTC)
         return [
-            TestModel(
+            BasicModel(
                 name="Item 1",
                 category="A",
                 value=100,
                 created_at=now - timedelta(days=10),
             ),
-            TestModel(
+            BasicModel(
                 name="Item 2",
                 category="A",
                 value=200,
                 created_at=now - timedelta(days=5),
             ),
-            TestModel(
+            BasicModel(
                 name="Item 3",
                 category="B",
                 value=150,
                 created_at=now - timedelta(days=1),
             ),
-            TestModel(name="Item 4", category="B", value=300, created_at=now),
+            BasicModel(name="Item 4", category="B", value=300, created_at=now),
         ]
 
     def test_filter_time_range_inclusive(self):
@@ -41,7 +42,7 @@ class TestTimeRangeCriteria(BaseFilterTest):
                 include_start_bound=True,
                 include_end_bound=True,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
 
@@ -71,7 +72,7 @@ class TestTimeRangeCriteria(BaseFilterTest):
                 include_start_bound=False,
                 include_end_bound=False,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
 
@@ -99,7 +100,7 @@ class TestTimeRangeCriteria(BaseFilterTest):
                 include_start_bound=True,
                 include_end_bound=True,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
 
@@ -122,7 +123,7 @@ class TestTimeRangeCriteria(BaseFilterTest):
                 include_start_bound=True,
                 include_end_bound=False,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
 
@@ -150,25 +151,25 @@ class TestRelativeTimeCriteria(BaseFilterTest):
     def build_test_data(self):
         now = datetime.now(UTC)
         return [
-            TestModel(
+            BasicModel(
                 name="Item 1",
                 category="A",
                 value=100,
                 created_at=now - timedelta(days=30),
             ),
-            TestModel(
+            BasicModel(
                 name="Item 2",
                 category="A",
                 value=200,
                 created_at=now - timedelta(days=14),
             ),
-            TestModel(
+            BasicModel(
                 name="Item 3",
                 category="B",
                 value=150,
                 created_at=now - timedelta(days=7),
             ),
-            TestModel(
+            BasicModel(
                 name="Item 4",
                 category="B",
                 value=300,
@@ -183,7 +184,7 @@ class TestRelativeTimeCriteria(BaseFilterTest):
                 include_start_bound=True,
                 include_end_bound=True,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
 
@@ -213,7 +214,7 @@ class TestRelativeTimeCriteria(BaseFilterTest):
                 include_start_bound=True,
                 include_end_bound=True,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
 
@@ -243,7 +244,7 @@ class TestRelativeTimeCriteria(BaseFilterTest):
                 include_start_bound=True,
                 include_end_bound=True,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
 
@@ -273,7 +274,7 @@ class TestRelativeTimeCriteria(BaseFilterTest):
                 include_start_bound=True,
                 include_end_bound=True,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
 
@@ -297,7 +298,7 @@ class TestRelativeTimeCriteria(BaseFilterTest):
                 include_start_bound=False,
                 include_end_bound=False,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
 
@@ -327,7 +328,7 @@ class TestRelativeTimeCriteria(BaseFilterTest):
                 include_start_bound=True,
                 include_end_bound=False,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
 

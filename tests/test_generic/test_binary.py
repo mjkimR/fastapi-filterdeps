@@ -3,7 +3,8 @@ from fastapi_filterdeps.generic.binary import (
     BinaryCriteria,
     BinaryFilterType,
 )
-from tests.conftest import BaseFilterTest, TestModel
+from tests.conftest import BaseFilterTest
+from tests.models import BasicModel
 
 
 class TestBinaryCriteria(BaseFilterTest):
@@ -14,7 +15,7 @@ class TestBinaryCriteria(BaseFilterTest):
                 alias="is_active",
                 filter_type=BinaryFilterType.IS_TRUE,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
         response = self.client.get("/test-items", params={"is_active": "true"})
@@ -29,7 +30,7 @@ class TestBinaryCriteria(BaseFilterTest):
                 alias="is_active",
                 filter_type=BinaryFilterType.IS_FALSE,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
         response = self.client.get("/test-items", params={"is_active": "true"})
@@ -42,7 +43,7 @@ class TestBinaryCriteria(BaseFilterTest):
             BinaryCriteria(
                 field="is_active", alias="is_null", filter_type=BinaryFilterType.IS_NONE
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
         response = self.client.get("/test-items", params={"is_null": "true"})
@@ -57,7 +58,7 @@ class TestBinaryCriteria(BaseFilterTest):
                 alias="is_not_null",
                 filter_type=BinaryFilterType.IS_NOT_NONE,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
         response = self.client.get("/test-items", params={"is_not_null": "true"})

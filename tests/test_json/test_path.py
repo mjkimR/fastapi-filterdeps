@@ -1,13 +1,13 @@
 from fastapi_filterdeps.base import create_combined_filter_dependency
 from fastapi_filterdeps.json.path import JsonPathCriteria, JsonPathOperation
-from tests.conftest import BaseFilterTest, TestModel
+from tests.conftest import BaseFilterTest, BasicModel
 
 
 class TestJsonPathCriteria(BaseFilterTest):
     def build_test_data(self):
         """Override test data with nested JSON fields."""
         return [
-            TestModel(
+            BasicModel(
                 name="Item 1",
                 category="A",
                 value=100,
@@ -20,7 +20,7 @@ class TestJsonPathCriteria(BaseFilterTest):
                     "metadata": {"tags": ["important", "featured"], "version": "1.0"},
                 },
             ),
-            TestModel(
+            BasicModel(
                 name="Item 2",
                 category="B",
                 value=200,
@@ -33,7 +33,7 @@ class TestJsonPathCriteria(BaseFilterTest):
                     "metadata": {"tags": ["draft"], "version": "2.0"},
                 },
             ),
-            TestModel(
+            BasicModel(
                 name="Item 3",
                 category="C",
                 value=300,
@@ -58,7 +58,7 @@ class TestJsonPathCriteria(BaseFilterTest):
                 operation=JsonPathOperation.EQUALS,
                 use_json_extract=True,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
 
@@ -78,7 +78,7 @@ class TestJsonPathCriteria(BaseFilterTest):
                 operation=JsonPathOperation.EXISTS,
                 use_json_extract=True,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
 
@@ -98,7 +98,7 @@ class TestJsonPathCriteria(BaseFilterTest):
                 operation=JsonPathOperation.EQUALS,
                 use_json_extract=True,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
 
@@ -121,7 +121,7 @@ class TestJsonPathCriteria(BaseFilterTest):
                 operation=JsonPathOperation.EQUALS,
                 use_json_extract=True,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
 
@@ -141,7 +141,7 @@ class TestJsonPathCriteria(BaseFilterTest):
                 operation=JsonPathOperation.EQUALS,
                 use_json_extract=True,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
 
@@ -160,7 +160,7 @@ class TestJsonPathCriteria(BaseFilterTest):
                 operation=JsonPathOperation.EQUALS,
                 use_json_extract=True,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
 

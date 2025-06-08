@@ -2,7 +2,8 @@ from fastapi_filterdeps.base import create_combined_filter_dependency
 from fastapi_filterdeps.generic.regex import (
     RegexCriteria,
 )
-from tests.conftest import BaseFilterTest, TestModel
+from tests.conftest import BaseFilterTest
+from tests.models import BasicModel
 
 
 class TestRegexCriteria(BaseFilterTest):
@@ -13,7 +14,7 @@ class TestRegexCriteria(BaseFilterTest):
                 alias="name_pattern",
                 case_sensitive=True,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
         response = self.client.get("/test-items", params={"name_pattern": "^Item"})
@@ -28,7 +29,7 @@ class TestRegexCriteria(BaseFilterTest):
                 alias="name_pattern",
                 case_sensitive=False,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
         response = self.client.get("/test-items", params={"name_pattern": "^item"})
@@ -42,7 +43,7 @@ class TestRegexCriteria(BaseFilterTest):
                 field="name",
                 alias="name_pattern",
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
         response = self.client.get("/test-items")

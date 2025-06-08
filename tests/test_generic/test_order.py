@@ -3,7 +3,8 @@ from fastapi_filterdeps.generic.order import (
     OrderCriteria,
     OrderType,
 )
-from tests.conftest import BaseFilterTest, TestModel
+from tests.conftest import BaseFilterTest
+from tests.models import BasicModel
 
 
 class TestOrderCriteria(BaseFilterTest):
@@ -13,7 +14,7 @@ class TestOrderCriteria(BaseFilterTest):
                 field="count",
                 order_type=OrderType.MAX,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
         response = self.client.get("/test-items")
@@ -29,7 +30,7 @@ class TestOrderCriteria(BaseFilterTest):
                 field="count",
                 order_type=OrderType.MIN,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
         response = self.client.get("/test-items")
@@ -46,7 +47,7 @@ class TestOrderCriteria(BaseFilterTest):
                 partition_by=["category"],
                 order_type=OrderType.MAX,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
         response = self.client.get("/test-items")
@@ -69,7 +70,7 @@ class TestOrderCriteria(BaseFilterTest):
                 partition_by=["category"],
                 order_type=OrderType.MIN,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
         response = self.client.get("/test-items")
@@ -91,7 +92,7 @@ class TestOrderCriteria(BaseFilterTest):
                 field="count",
                 order_type=OrderType.MAX,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
         response = self.client.get("/test-items", params={"count_max": "false"})

@@ -1,39 +1,18 @@
 from typing import Callable
 import pytest
-from sqlalchemy import create_engine, select, Boolean, JSON
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 from fastapi import FastAPI, Depends
 from fastapi.testclient import TestClient
 import logging
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import Integer, String, DateTime
-from datetime import datetime, UTC
+
 from sqlalchemy.pool import StaticPool
+
+from tests.models import Base, BasicModel
 
 
 # Configure logging
 logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
-
-
-class Base(DeclarativeBase):
-    pass
-
-
-class TestModel(Base):
-    __tablename__ = "test_items"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    name: Mapped[str] = mapped_column(String(50))
-    category: Mapped[str] = mapped_column(String(50))
-    value: Mapped[int] = mapped_column(Integer)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(UTC)
-    )
-
-    count: Mapped[int] = mapped_column(Integer, default=0)
-    is_active: Mapped[bool] = mapped_column(Boolean, nullable=True)
-    status: Mapped[str] = mapped_column(String(50), nullable=True)
-    detail: Mapped[dict] = mapped_column(JSON, nullable=True)
 
 
 @pytest.fixture(scope="function")
@@ -91,7 +70,7 @@ class BaseFilterTest:
 
         yield
 
-        db_session.query(TestModel).delete()
+        db_session.query(BasicModel).delete()
         db_session.commit()
 
     def build_test_data(self):
@@ -101,7 +80,7 @@ class BaseFilterTest:
         that need specific test data.
         """
         return [
-            TestModel(
+            BasicModel(
                 name="Item 1",
                 category="A",
                 value=100,
@@ -110,7 +89,7 @@ class BaseFilterTest:
                 status="active",
                 detail={"settings": {"theme": "light"}},
             ),
-            TestModel(
+            BasicModel(
                 name="Item 2",
                 category="A",
                 value=200,
@@ -119,7 +98,7 @@ class BaseFilterTest:
                 status="inactive",
                 detail={"settings": {"theme": "dark"}},
             ),
-            TestModel(
+            BasicModel(
                 name="Item 3",
                 category="B",
                 value=150,
@@ -135,6 +114,6 @@ class BaseFilterTest:
 
         @self.app.get("/test-items")
         async def test_endpoint(filters=Depends(filter_deps)):
-            stmt = select(TestModel).where(*filters)
+            stmt = select(BasicModel).where(*filters)
             result = self.session.execute(stmt).scalars().all()
             return result

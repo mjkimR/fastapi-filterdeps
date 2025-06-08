@@ -1,36 +1,27 @@
 from fastapi_filterdeps.base import create_combined_filter_dependency
 from fastapi_filterdeps.join.aggregation import JoinAggregateCriteria
 from sqlalchemy import func
-from tests.conftest import BaseFilterTest, Base, TestModel
-from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import Integer, ForeignKey
-
-
-class Vote(Base):
-    __tablename__ = "votes"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    score: Mapped[int] = mapped_column(Integer)
-    post_id: Mapped[int] = mapped_column(Integer, ForeignKey("test_items.id"))
+from tests.conftest import BaseFilterTest
+from tests.models import BasicModel, Vote
 
 
 class TestJoinAggregateCriteria(BaseFilterTest):
     def build_test_data(self):
         """Build test data with posts and related votes."""
         posts = [
-            TestModel(
+            BasicModel(
                 name="Post 1",
                 category="A",
                 value=100,
                 is_active=True,
             ),
-            TestModel(
+            BasicModel(
                 name="Post 2",
                 category="B",
                 value=200,
                 is_active=True,
             ),
-            TestModel(
+            BasicModel(
                 name="Post 3",
                 category="C",
                 value=300,
@@ -58,11 +49,11 @@ class TestJoinAggregateCriteria(BaseFilterTest):
         """Test filtering posts by vote count."""
         filter_deps = create_combined_filter_dependency(
             JoinAggregateCriteria(
-                join_condition=TestModel.id == Vote.post_id,
+                join_condition=BasicModel.id == Vote.post_id,
                 join_model=Vote,
                 having_expression=func.count(Vote.id) > 2,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
 
         self.setup_filter(filter_deps=filter_deps)
@@ -77,11 +68,11 @@ class TestJoinAggregateCriteria(BaseFilterTest):
         """Test filtering posts by average vote score."""
         filter_deps = create_combined_filter_dependency(
             JoinAggregateCriteria(
-                join_condition=TestModel.id == Vote.post_id,
+                join_condition=BasicModel.id == Vote.post_id,
                 join_model=Vote,
                 having_expression=func.avg(Vote.score) >= 4.5,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
 
         self.setup_filter(filter_deps=filter_deps)
@@ -96,12 +87,12 @@ class TestJoinAggregateCriteria(BaseFilterTest):
         """Test filtering with outer join to include posts without votes."""
         filter_deps = create_combined_filter_dependency(
             JoinAggregateCriteria(
-                join_condition=TestModel.id == Vote.post_id,
+                join_condition=BasicModel.id == Vote.post_id,
                 join_model=Vote,
                 having_expression=func.count(Vote.id) == 0,
-                is_outer=True,
+                include_unrelated=True,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
 
         self.setup_filter(filter_deps=filter_deps)

@@ -4,7 +4,8 @@ from fastapi_filterdeps.generic.string import (
     StringSetCriteria,
     StringMatchType,
 )
-from tests.conftest import BaseFilterTest, TestModel
+from tests.conftest import BaseFilterTest
+from tests.models import BasicModel
 
 
 class TestStringCriteria(BaseFilterTest):
@@ -13,7 +14,7 @@ class TestStringCriteria(BaseFilterTest):
             StringCriteria(
                 field="name", alias="name", match_type=StringMatchType.EXACT
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
         response = self.client.get("/test-items", params={"name": "Item 1"})
@@ -28,7 +29,7 @@ class TestStringCriteria(BaseFilterTest):
                 alias="name",
                 match_type=StringMatchType.CONTAINS,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
         response = self.client.get("/test-items", params={"name": "item"})
@@ -41,7 +42,7 @@ class TestStringSetCriteria(BaseFilterTest):
     def test_filter_string_set_exact(self):
         filter_deps = create_combined_filter_dependency(
             StringSetCriteria(field="name", alias="name"),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
         response = self.client.get("/test-items", params={"category": ["A", "B"]})

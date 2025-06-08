@@ -1,37 +1,27 @@
 from datetime import datetime, UTC
 from fastapi_filterdeps.base import create_combined_filter_dependency
 from fastapi_filterdeps.join.related_value import JoinRelatedValueCriteria
-from tests.conftest import BaseFilterTest, Base, TestModel
-from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import Integer, String, ForeignKey, DateTime
-
-
-class Review(Base):
-    __tablename__ = "reviews"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    rating: Mapped[int] = mapped_column(Integer)
-    created_at: Mapped[datetime] = mapped_column(DateTime)
-    post_id: Mapped[int] = mapped_column(Integer, ForeignKey("test_items.id"))
+from tests.conftest import BaseFilterTest
+from tests.models import BasicModel, Review
 
 
 class TestJoinRelatedValueCriteria(BaseFilterTest):
     def build_test_data(self):
         """Build test data with posts and related reviews."""
         posts = [
-            TestModel(
+            BasicModel(
                 name="Post 1",
                 category="A",
                 value=100,
                 is_active=True,
             ),
-            TestModel(
+            BasicModel(
                 name="Post 2",
                 category="B",
                 value=200,
                 is_active=True,
             ),
-            TestModel(
+            BasicModel(
                 name="Post 3",
                 category="C",
                 value=300,
@@ -60,13 +50,13 @@ class TestJoinRelatedValueCriteria(BaseFilterTest):
         """Test filtering posts by latest review rating."""
         filter_deps = create_combined_filter_dependency(
             JoinRelatedValueCriteria(
-                join_condition=TestModel.id == Review.post_id,
+                join_condition=BasicModel.id == Review.post_id,
                 join_model=Review,
                 target_column=Review.rating,
                 value_expression=Review.rating < 3,
                 order_by=Review.created_at.desc(),
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
 
         self.setup_filter(filter_deps=filter_deps)
@@ -81,13 +71,13 @@ class TestJoinRelatedValueCriteria(BaseFilterTest):
         """Test filtering posts by first review with high rating."""
         filter_deps = create_combined_filter_dependency(
             JoinRelatedValueCriteria(
-                join_condition=TestModel.id == Review.post_id,
+                join_condition=BasicModel.id == Review.post_id,
                 join_model=Review,
                 target_column=Review.rating,
                 value_expression=Review.rating >= 4,
                 order_by=Review.created_at.asc(),
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
 
         self.setup_filter(filter_deps=filter_deps)
@@ -102,14 +92,14 @@ class TestJoinRelatedValueCriteria(BaseFilterTest):
         """Test filtering with outer join to find posts without reviews."""
         filter_deps = create_combined_filter_dependency(
             JoinRelatedValueCriteria(
-                join_condition=TestModel.id == Review.post_id,
+                join_condition=BasicModel.id == Review.post_id,
                 join_model=Review,
                 target_column=Review.id,
                 value_expression=Review.id.is_(None),
                 order_by=Review.created_at.asc(),
                 is_outer=True,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
 
         self.setup_filter(filter_deps=filter_deps)

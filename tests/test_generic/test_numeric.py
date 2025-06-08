@@ -3,14 +3,15 @@ from fastapi_filterdeps.generic.numeric import (
     NumericRangeCriteria,
     NumericExactCriteria,
 )
-from tests.conftest import BaseFilterTest, TestModel
+from tests.conftest import BaseFilterTest
+from tests.models import BasicModel
 
 
 class TestNumericRangeCriteria(BaseFilterTest):
     def build_test_data(self):
         """Build test data with values outside the 10-20 range."""
         return [
-            TestModel(
+            BasicModel(
                 name="Item 1",
                 category="A",
                 value=100,
@@ -19,7 +20,7 @@ class TestNumericRangeCriteria(BaseFilterTest):
                 status="active",
                 detail={"settings": {"theme": "light"}},
             ),
-            TestModel(
+            BasicModel(
                 name="Item 2",
                 category="A",
                 value=200,
@@ -28,7 +29,7 @@ class TestNumericRangeCriteria(BaseFilterTest):
                 status="inactive",
                 detail={"settings": {"theme": "dark"}},
             ),
-            TestModel(
+            BasicModel(
                 name="Item 3",
                 category="B",
                 value=150,
@@ -49,7 +50,7 @@ class TestNumericRangeCriteria(BaseFilterTest):
                 include_min_bound=True,
                 include_max_bound=True,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
         response = self.client.get(
@@ -69,7 +70,7 @@ class TestNumericRangeCriteria(BaseFilterTest):
                 include_min_bound=False,
                 include_max_bound=False,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
         response = self.client.get(
@@ -89,7 +90,7 @@ class TestNumericRangeCriteria(BaseFilterTest):
                 include_min_bound=True,
                 include_max_bound=True,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
         response = self.client.get("/test-items", params={"min_count": 10})
@@ -106,7 +107,7 @@ class TestNumericRangeCriteria(BaseFilterTest):
                 numeric_type=int,
                 exclude=True,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
         response = self.client.get(
@@ -126,7 +127,7 @@ class TestNumericRangeCriteria(BaseFilterTest):
                 include_min_bound=True,
                 include_max_bound=False,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
         response = self.client.get(
@@ -145,7 +146,7 @@ class TestNumericExactCriteria(BaseFilterTest):
                 alias="count",
                 numeric_type=int,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
         response = self.client.get("/test-items", params={"count": 10})
@@ -161,7 +162,7 @@ class TestNumericExactCriteria(BaseFilterTest):
                 exclude=True,
                 numeric_type=int,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
         response = self.client.get("/test-items", params={"count": 10})
@@ -176,7 +177,7 @@ class TestNumericExactCriteria(BaseFilterTest):
                 alias="count",
                 numeric_type=int,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
         response = self.client.get("/test-items")

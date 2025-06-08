@@ -1,19 +1,19 @@
 from fastapi_filterdeps.base import create_combined_filter_dependency
 from fastapi_filterdeps.json.tags import JsonDictTagsCriteria
-from tests.conftest import BaseFilterTest, TestModel
+from tests.conftest import BaseFilterTest, BasicModel
 
 
 class TestJsonDictTagsCriteria(BaseFilterTest):
     def build_test_data(self):
         """Override test data with JSON tag fields."""
         return [
-            TestModel(
+            BasicModel(
                 name="Item 1",
                 category="A",
                 value=100,
                 detail={"tags": {"urgent": True, "priority": "high", "language": "en"}},
             ),
-            TestModel(
+            BasicModel(
                 name="Item 2",
                 category="B",
                 value=200,
@@ -21,7 +21,7 @@ class TestJsonDictTagsCriteria(BaseFilterTest):
                     "tags": {"featured": True, "priority": "low", "language": "ko"}
                 },
             ),
-            TestModel(
+            BasicModel(
                 name="Item 3",
                 category="C",
                 value=300,
@@ -37,7 +37,7 @@ class TestJsonDictTagsCriteria(BaseFilterTest):
                 alias="tags",
                 use_json_extract=True,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
 
@@ -57,7 +57,7 @@ class TestJsonDictTagsCriteria(BaseFilterTest):
                 alias="tags",
                 use_json_extract=True,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
 
@@ -76,7 +76,7 @@ class TestJsonDictTagsCriteria(BaseFilterTest):
                 alias="tags",
                 use_json_extract=True,
             ),
-            orm_model=TestModel,
+            orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
 

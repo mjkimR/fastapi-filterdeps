@@ -38,7 +38,6 @@ post_filters = create_combined_filter_dependency(
         join_condition=Post.id == Comment.post_id,
         alias="has_approved_comments",
         join_model=Comment,
-        is_outer=False,
     ),
     orm_model=Post,
 )

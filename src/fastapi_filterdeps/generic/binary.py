@@ -124,8 +124,8 @@ class BinaryCriteria(SqlFilterCriteriaBase):
         model_field = getattr(orm_model, self.field)
 
         def filter_dependency(
-            apply_filter: bool = Query(
-                default=False,
+            is_value: Optional[bool] = Query(
+                default=None,
                 alias=self.alias,
                 description=self.description,
             ),
@@ -133,21 +133,21 @@ class BinaryCriteria(SqlFilterCriteriaBase):
             """Generate binary filter conditions.
 
             Args:
-                apply_filter (bool): Whether to apply the binary filter.
+                is_value (Optional[bool]): Is value of the filter. If None, no filter is applied. If False, the filter is inverted.
 
             Returns:
                 Optional[ColumnElement]: SQLAlchemy filter condition or None if no filter is applied.
             """
-            if not apply_filter:
+            if is_value is None:
                 return None
 
             if self.filter_type == BinaryFilterType.IS_TRUE:
-                return model_field.is_(True)
+                return model_field.is_(True) if is_value else model_field.is_(False)
             elif self.filter_type == BinaryFilterType.IS_FALSE:
-                return model_field.is_(False)
+                return model_field.is_(False) if is_value else model_field.is_(True)
             elif self.filter_type == BinaryFilterType.IS_NONE:
-                return model_field.is_(None)
+                return model_field.is_(None) if is_value else model_field.isnot(None)
             else:  # IS_NOT_NONE
-                return model_field.isnot(None)
+                return model_field.isnot(None) if is_value else model_field.is_(None)
 
         return filter_dependency

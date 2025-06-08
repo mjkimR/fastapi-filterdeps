@@ -1,36 +1,40 @@
 from typing import Optional, Callable
 
 from fastapi import Query
-from sqlalchemy import select, tuple_
+from sqlalchemy import select, not_, and_, or_, exists as sql_exists
 from fastapi_filterdeps.base import SqlFilterCriteriaBase
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.sql.expression import ColumnElement
 
 
 class JoinExistsCriteria(SqlFilterCriteriaBase):
-    """A filter criteria that checks for the existence of related records using JOIN operations.
+    """A filter criteria that checks for the existence (or non-existence) of related records.
 
-    This criteria allows filtering records based on the existence of related records
-    that match certain conditions. It supports both inner and left outer joins, and can be
-    used to either include or exclude records based on the join results.
+    This criteria filters records based on whether related records in `join_model` (connected via
+    `join_condition`) exist that also satisfy the `filter_condition`. It uses correlated
+    subqueries with SQL `EXISTS`.
 
     Args:
-        filter_condition (List[ColumnElement]): List of filter conditions to apply on the joined table
-        join_condition (ColumnElement): SQLAlchemy join condition (e.g., Model.field == OtherModel.field)
-        join_model (type[DeclarativeBase]): The SQLAlchemy model to join with
-        is_outer (bool, optional): If True, performs a LEFT OUTER JOIN instead of an INNER JOIN.
-                                 This is equivalent to SQLAlchemy's is_outer parameter which creates
-                                 a LEFT OUTER JOIN. Defaults to False.
-        description (Optional[str], optional): Description of the filter criteria. Defaults to None.
+        alias (str): The alias for the query parameter used to activate this filter (e.g., "has_comments").
+        filter_condition (list[ColumnElement]): A list of SQLAlchemy expressions to be applied as
+                                                filters on the `join_model` within the subquery.
+        join_condition (ColumnElement): SQLAlchemy expression defining the relationship between
+                                        the main model and `join_model` (e.g., `ParentModel.id == ChildModel.parent_id`).
+                                        This condition is used to correlate the subquery.
+        join_model (type[DeclarativeBase]): The SQLAlchemy model class for the related records.
+        include_unrelated (bool, optional): If True, the filter will include records that do not have any related records.
+        description (Optional[str], optional): Custom description for the API documentation.
+                                               If `None`, a default description is generated.
 
     Example:
         ```python
-        # Filter posts that have comments matching certain criteria
+        # Filter posts based on the existence of approved comments.
         criteria = JoinExistsCriteria(
-            join_criteria=[CommentFilterCriteria(...)],
+            alias="has_approved_comments",
+            filter_condition=[Comment.is_approved == True],
             join_condition=Post.id == Comment.post_id,
             join_model=Comment,
-            is_outer=True  # Will perform a LEFT OUTER JOIN
+            include_unrelated=True
         )
         ```
     """
@@ -41,23 +45,25 @@ class JoinExistsCriteria(SqlFilterCriteriaBase):
         filter_condition: list[ColumnElement],
         join_condition: ColumnElement,
         join_model: type[DeclarativeBase],
-        is_outer: bool = False,
+        include_unrelated: bool = False,
         description: Optional[str] = None,
     ):
         """Initialize the join exists criteria.
 
         Args:
-            filter_condition: List of filter conditions to apply to the joined table
-            join_condition: SQLAlchemy expression defining the join condition
-            join_model: The SQLAlchemy model class to join with
-            is_outer: If True, performs a LEFT OUTER JOIN instead of an INNER JOIN
-            description: Optional description of the filter for API documentation
+            alias: The alias for the query parameter (e.g., "has_approved_comments").
+            filter_condition: List of SQLAlchemy filter conditions to apply to the `join_model`.
+            join_condition: SQLAlchemy expression defining the relationship between `orm_model`
+                            and `join_model`.
+            join_model: The SQLAlchemy model class to check for related records.
+            include_unrelated: If True, the filter will include records that do not have any related records.
+            description: Optional description for API documentation. If None, a default is generated.
         """
         self.alias = alias
         self.filter_condition = filter_condition
         self.join_condition = join_condition
         self.join_model = join_model
-        self.is_outer = is_outer
+        self.include_unrelated = include_unrelated
         self.description = description or self._get_default_description()
 
     def _get_default_description(self) -> str:
@@ -68,23 +74,12 @@ class JoinExistsCriteria(SqlFilterCriteriaBase):
     ) -> Callable[..., Optional[ColumnElement]]:
         """Build a FastAPI dependency for filtering based on joined table conditions.
 
-        This method creates a dependency that will:
-        1. Apply the filter_condition to filter the joined table
-        2. Use EXISTS or NOT EXISTS subquery to filter the main table
-        3. Return None if no filter_condition are active, making the filter truly optional
-
         Args:
             orm_model: The main SQLAlchemy model class to create filter for
-
         Returns:
             A FastAPI dependency function that returns an SQLAlchemy filter condition
             or None if no filtering should be applied
-
-        Raises:
-            InvalidFieldError: If the model does not have primary keys
         """
-        self._validate_model_has_primary_keys(orm_model=orm_model)
-        primary_keys = self.get_primary_keys(orm_model)
 
         def filter_dependency(
             exists: Optional[bool] = Query(
@@ -93,31 +88,28 @@ class JoinExistsCriteria(SqlFilterCriteriaBase):
                 description=self.description,
             )
         ) -> Optional[ColumnElement]:
-            """Generate a filter condition based on joined table criteria.
-
-            Args:
-                exists: Whether to filter based on the existence of related records.
-                        If None, no filter is applied. If False, the filter is inverted.
-
-            Returns:
-                SQLAlchemy filter condition or None if no filtering should be applied.
-                Returns None when join_criteria is None or empty, making this filter
-                truly optional - it won't affect the query at all in this case.
-            """
             if exists is None:
                 return None
 
-            subquery = (
-                select(*primary_keys)
-                .select_from(orm_model)
-                .join(self.join_model, self.join_condition, isouter=self.is_outer)
+            stmt_related_satisfies_fc = (
+                select(self.join_model)
+                .where(self.join_condition)
                 .where(*self.filter_condition)
             )
+            cond_related_satisfies_fc = sql_exists(stmt_related_satisfies_fc)
 
-            return (
-                tuple_(*primary_keys).in_(subquery)
-                if exists
-                else tuple_(*primary_keys).notin_(subquery)
-            )
+            if not self.include_unrelated:
+                if exists:
+                    return cond_related_satisfies_fc
+                else:
+                    return not_(cond_related_satisfies_fc)
+            else:
+                stmt_any_related = select(self.join_model).where(self.join_condition)
+                cond_any_related = sql_exists(stmt_any_related)
+
+                if exists:
+                    return or_(cond_related_satisfies_fc, not_(cond_any_related))
+                else:
+                    return and_(cond_any_related, not_(cond_related_satisfies_fc))
 
         return filter_dependency

@@ -8,7 +8,7 @@ import logging
 
 from sqlalchemy.pool import StaticPool
 
-from tests.models import Base, BasicModel
+from tests.models import Base, BasicModel, Vote, Review, Comment
 
 
 # Configure logging
@@ -115,5 +115,32 @@ class BaseFilterTest:
         @self.app.get("/test-items")
         async def test_endpoint(filters=Depends(filter_deps)):
             stmt = select(BasicModel).where(*filters)
+            result = self.session.execute(stmt).scalars().all()
+            return result
+
+    def setup_vote_filter(self, filter_deps: Callable):
+        """Setup filter dependency for Vote model"""
+
+        @self.app.get("/test-votes")
+        async def test_endpoint(filters=Depends(filter_deps)):
+            stmt = select(Vote).where(*filters)
+            result = self.session.execute(stmt).scalars().all()
+            return result
+
+    def setup_review_filter(self, filter_deps: Callable):
+        """Setup filter dependency for Review model"""
+
+        @self.app.get("/test-reviews")
+        async def test_endpoint(filters=Depends(filter_deps)):
+            stmt = select(Review).where(*filters)
+            result = self.session.execute(stmt).scalars().all()
+            return result
+
+    def setup_comment_filter(self, filter_deps: Callable):
+        """Setup filter dependency for Comment model"""
+
+        @self.app.get("/test-comments")
+        async def test_endpoint(filters=Depends(filter_deps)):
+            stmt = select(Comment).where(*filters)
             result = self.session.execute(stmt).scalars().all()
             return result

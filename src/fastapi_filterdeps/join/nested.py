@@ -18,7 +18,7 @@ class JoinNestedFilterCriteria(SqlFilterCriteriaBase):
     this filter will also return None to indicate no filtering should occur.
 
     Args:
-        join_criteria (List[SqlFilterCriteriaBase]): List of filter criteria to apply on the joined table
+        filter_criteria (List[SqlFilterCriteriaBase]): List of filter criteria to apply on the joined table
         join_condition (ColumnElement): SQLAlchemy expression defining the relationship between
                                         the main model and `join_model` (e.g., `ParentModel.id == ChildModel.parent_id`).
                                         This condition is used to correlate the subquery.
@@ -34,17 +34,17 @@ class JoinNestedFilterCriteria(SqlFilterCriteriaBase):
         #   - Includes posts with approved comments
         #   - Includes posts with no comments at all
         criteria = JoinNestedFilterCriteria(
-            join_criteria=[CommentFilterCriteria(...)],
+            filter_criteria=[CommentFilterCriteria(...)],
             join_condition=Post.id == Comment.post_id,
             join_model=Comment,
-            is_outer=True
+            include_unrelated=True
         )
         ```
     """
 
     def __init__(
         self,
-        join_criteria: list[SqlFilterCriteriaBase],
+        filter_criteria: list[SqlFilterCriteriaBase],
         join_condition: ColumnElement,
         join_model: type[DeclarativeBase],
         exclude: bool = False,
@@ -62,7 +62,7 @@ class JoinNestedFilterCriteria(SqlFilterCriteriaBase):
             include_unrelated: If True, the filter will include records that do not have any related records.
             description: Optional description of the filter for API documentation.
         """
-        self.join_criteria = join_criteria
+        self.filter_criteria = filter_criteria
         self.join_condition = join_condition
         self.join_model = join_model
         self.exclude = exclude
@@ -83,30 +83,30 @@ class JoinNestedFilterCriteria(SqlFilterCriteriaBase):
         """
 
         def filter_dependency(
-            join_criteria=Depends(
+            filter_criteria=Depends(
                 create_combined_filter_dependency(
-                    *self.join_criteria, orm_model=self.join_model
+                    *self.filter_criteria, orm_model=self.join_model
                 )
             )
         ) -> Optional[ColumnElement]:
             """Generate a filter condition based on joined table criteria.
 
             Args:
-                join_criteria: Filter conditions from the join_criteria dependencies.
+                filter_criteria: Filter conditions from the filter_criteria dependencies.
                              Will be None if no criteria are active.
 
             Returns:
                 SQLAlchemy filter condition or None if no filtering should be applied.
-                Returns None when join_criteria is None or empty, making this filter
+                Returns None when filter_criteria is None or empty, making this filter
                 truly optional - it won't affect the query at all in this case.
             """
-            if not join_criteria:
+            if not filter_criteria:
                 return None
 
             stmt_related_satisfies_filters = (
                 select(self.join_model.id)
                 .where(self.join_condition)
-                .where(*join_criteria)
+                .where(*filter_criteria)
             )
             cond_related_satisfies_filters = sql_exists(stmt_related_satisfies_filters)
 

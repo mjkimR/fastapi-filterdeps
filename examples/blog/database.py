@@ -2,7 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from models import Base, Post, User, Comment
+from models import Base, Post, User, Comment, Vote
 
 # SQLite database for example
 DATABASE_URL = "sqlite:///:memory:"
@@ -82,8 +82,16 @@ def init_db():
             is_approved=False,
         ),
     ]
+    votes = [
+        Vote(id=1, score=1, post_id=1),
+        Vote(id=2, score=2, post_id=2),
+        Vote(id=3, score=4, post_id=3),
+        Vote(id=4, score=5, post_id=3),
+    ]
     db.add_all(users)
     db.add_all(posts)
     db.add_all(comments)
+    db.add_all(votes)
+    # Commit the changes
     db.commit()
     db.close()

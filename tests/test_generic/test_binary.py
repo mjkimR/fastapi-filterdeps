@@ -23,6 +23,11 @@ class TestBinaryCriteria(BaseFilterTest):
         assert len(response.json()) > 0
         assert all(item["is_active"] is True for item in response.json())
 
+        response = self.client.get("/test-items", params={"is_active": "false"})
+        assert response.status_code == 200
+        assert len(response.json()) > 0
+        assert all(item["is_active"] is False for item in response.json())
+
     def test_filter_is_false(self):
         filter_deps = create_combined_filter_dependency(
             BinaryCriteria(
@@ -38,6 +43,11 @@ class TestBinaryCriteria(BaseFilterTest):
         assert len(response.json()) > 0
         assert all(item["is_active"] is False for item in response.json())
 
+        response = self.client.get("/test-items", params={"is_active": "false"})
+        assert response.status_code == 200
+        assert len(response.json()) > 0
+        assert all(item["is_active"] is True for item in response.json())
+
     def test_filter_is_none(self):
         filter_deps = create_combined_filter_dependency(
             BinaryCriteria(
@@ -50,6 +60,11 @@ class TestBinaryCriteria(BaseFilterTest):
         assert response.status_code == 200
         assert len(response.json()) > 0
         assert all(item["is_active"] is None for item in response.json())
+
+        response = self.client.get("/test-items", params={"is_null": "false"})
+        assert response.status_code == 200
+        assert len(response.json()) > 0
+        assert all(item["is_active"] is not None for item in response.json())
 
     def test_filter_is_not_none(self):
         filter_deps = create_combined_filter_dependency(
@@ -65,3 +80,8 @@ class TestBinaryCriteria(BaseFilterTest):
         assert response.status_code == 200
         assert len(response.json()) > 0
         assert all(item["is_active"] is not None for item in response.json())
+
+        response = self.client.get("/test-items", params={"is_not_null": "false"})
+        assert response.status_code == 200
+        assert len(response.json()) > 0
+        assert all(item["is_active"] is None for item in response.json())

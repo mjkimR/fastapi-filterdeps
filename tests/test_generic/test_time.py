@@ -11,30 +11,6 @@ from tests.models import BasicModel
 
 
 class TestTimeRangeCriteria(BaseFilterTest):
-    def build_test_data(self):
-        now = datetime.now(UTC)
-        return [
-            BasicModel(
-                name="Item 1",
-                category="A",
-                value=100,
-                created_at=now - timedelta(days=10),
-            ),
-            BasicModel(
-                name="Item 2",
-                category="A",
-                value=200,
-                created_at=now - timedelta(days=5),
-            ),
-            BasicModel(
-                name="Item 3",
-                category="B",
-                value=150,
-                created_at=now - timedelta(days=1),
-            ),
-            BasicModel(name="Item 4", category="B", value=300, created_at=now),
-        ]
-
     def test_filter_time_range_inclusive(self):
         filter_deps = create_combined_filter_dependency(
             TimeRangeCriteria(

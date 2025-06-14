@@ -8,38 +8,6 @@ from tests.models import BasicModel
 
 
 class TestNumericRangeCriteria(BaseFilterTest):
-    def build_test_data(self):
-        """Build test data with values outside the 10-20 range."""
-        return [
-            BasicModel(
-                name="Item 1",
-                category="A",
-                value=100,
-                count=5,  # Less than 10
-                is_active=True,
-                status="active",
-                detail={"settings": {"theme": "light"}},
-            ),
-            BasicModel(
-                name="Item 2",
-                category="A",
-                value=200,
-                count=25,  # Greater than 20
-                is_active=False,
-                status="inactive",
-                detail={"settings": {"theme": "dark"}},
-            ),
-            BasicModel(
-                name="Item 3",
-                category="B",
-                value=150,
-                count=15,  # Within range (will be excluded)
-                is_active=None,
-                status="pending",
-                detail={"settings": {"theme": "custom"}},
-            ),
-        ]
-
     def test_filter_range_inclusive(self):
         filter_deps = create_combined_filter_dependency(
             NumericRangeCriteria(

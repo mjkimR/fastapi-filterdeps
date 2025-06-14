@@ -1,41 +1,55 @@
+import os
+from pathlib import Path
+import sys
 from typing import Callable
 import pytest
-from sqlalchemy import create_engine, select
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import select
 from fastapi import FastAPI, Depends
 from fastapi.testclient import TestClient
 import logging
 
-from sqlalchemy.pool import StaticPool
-
-from tests.models import Base, BasicModel, Vote, Review, Comment
-
+from tests.models import BasicModel, Vote, Review, Comment
+from tests.db_sessions import *
+from tests.init_data import *
 
 # Configure logging
 logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 
+sys.path.append(str(Path(__file__).parent.parent / "src"))
 
-@pytest.fixture(scope="function")
-def engine():
-    """Test SQLite database engine fixture."""
-    engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
+
+def pytest_addoption(parser):
+    """'--db-type' command line option to select DB type."""
+    parser.addoption(
+        "--db-type",
+        action="store",
+        default="all",
+        help="Select database type for tests (sqlite, postgres, all)",
     )
-    # Make sure to create tables for Vote and Review models
-    Base.metadata.create_all(engine)
-    yield engine
-    Base.metadata.drop_all(engine)
+
+
+@pytest.fixture(scope="session", params=["sqlite", "postgres"])
+def db_type(request):
+    """
+    fixture to determine the database type for tests.
+    Uses the '--db-type' command line option.
+    """
+    selected_db = request.config.getoption("--db-type")
+    if selected_db != "all" and request.param != selected_db:
+        pytest.skip(
+            f"'{request.param}' skipped because '--db-type' is set to '{selected_db}'"
+        )
+    return request.param
 
 
 @pytest.fixture(scope="function")
-def db_session(engine):
-    """Database session fixture for testing."""
-    Session = sessionmaker(bind=engine)
-    session = Session()
-    yield session
-    session.close()
+def db_session(request, db_type):
+    """
+    Fixture to provide a database session based on the selected DB type.
+    Uses the db_type fixture to dynamically select the appropriate session fixture.
+    """
+    session_fixture = request.getfixturevalue(f"{db_type}_session")
+    yield session_fixture
 
 
 @pytest.fixture(scope="function")
@@ -58,56 +72,24 @@ def test_client(test_app):
 
 class BaseFilterTest:
     @pytest.fixture(autouse=True, scope="function")
-    def setup(self, test_app, test_client, db_session):
+    def setup(self, test_app, test_client, db_session, datasets):
         """Setup test environment."""
         self.app = test_app
         self.client = test_client
         self.session = db_session
-        self.test_data = self.build_test_data()
+        self.test_data = datasets
 
-        db_session.add_all(self.test_data)
+        for data in self.test_data.values():
+            db_session.add_all(data)
         db_session.commit()
 
         yield
 
+        db_session.query(Comment).delete()
+        db_session.query(Review).delete()
+        db_session.query(Vote).delete()
         db_session.query(BasicModel).delete()
         db_session.commit()
-
-    def build_test_data(self):
-        """Build test data.
-
-        This is a base implementation that should be overridden by test classes
-        that need specific test data.
-        """
-        return [
-            BasicModel(
-                name="Item 1",
-                category="A",
-                value=100,
-                count=10,
-                is_active=True,
-                status="active",
-                detail={"settings": {"theme": "light"}},
-            ),
-            BasicModel(
-                name="Item 2",
-                category="A",
-                value=200,
-                count=20,
-                is_active=False,
-                status="inactive",
-                detail={"settings": {"theme": "dark"}},
-            ),
-            BasicModel(
-                name="Item 3",
-                category="B",
-                value=150,
-                count=15,
-                is_active=None,
-                status="pending",
-                detail={"settings": {"theme": "custom"}},
-            ),
-        ]
 
     def setup_filter(self, filter_deps: Callable):
         """Setup filter dependency."""

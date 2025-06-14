@@ -41,7 +41,7 @@ class TestStringCriteria(BaseFilterTest):
 class TestStringSetCriteria(BaseFilterTest):
     def test_filter_string_set_exact(self):
         filter_deps = create_combined_filter_dependency(
-            StringSetCriteria(field="name", alias="name"),
+            StringSetCriteria(field="category", alias="category"),
             orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)

@@ -208,8 +208,8 @@ class MultiEnumCriteria(SqlFilterCriteriaBase):
         model_field = getattr(orm_model, self.field)
 
         def filter_dependency(
-            values: list[self.enum_class] = Query(  # type: ignore
-                default=[],
+            values: Optional[list[self.enum_class]] = Query(  # type: ignore
+                default=None,
                 alias=self.alias,
                 description=self.description,
             )

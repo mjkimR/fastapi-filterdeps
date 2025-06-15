@@ -11,6 +11,28 @@ from fastapi_filterdeps.base import SqlFilterCriteriaBase
 from fastapi_filterdeps.exceptions import InvalidValueError
 
 
+class TimeMatchType(str, Enum):
+    """
+    Enumeration for time-based matching operations.
+
+    Defines the available comparison operators for datetime fields.
+    - GTE: Greater than or equal to (>=)
+    - GT: Greater than (>)
+    - LTE: Less than or equal to (<=)
+    - LT: Less than (<)
+    """
+
+    GTE = "gte"
+    GT = "gt"
+    LTE = "lte"
+    LT = "lt"
+
+    @classmethod
+    def get_all_operators(cls) -> set[str]:
+        """Get all available operators."""
+        return {op.value for op in cls}
+
+
 class TimeUnit(str, Enum):
     """Time units for relative date calculations.
 
@@ -27,144 +49,86 @@ class TimeUnit(str, Enum):
     YEAR = "year"
 
 
-class TimeRangeCriteria(SqlFilterCriteriaBase):
-    """Base filter for explicit time range filtering.
+class TimeCriteria(SqlFilterCriteriaBase):
+    """
+    Base filter for single datetime field comparisons.
 
-    Provides filtering for datetime fields using explicit start and end dates.
+    Provides a generic implementation for filtering datetime fields based on
+    a specific comparison operator (e.g., greater than, less than, equal to).
 
     Attributes:
         field (str): Model datetime field name to filter on.
-        start_alias (str): Query parameter name for start time.
-        end_alias (str): Query parameter name for end time.
-        include_start_bound (bool): Whether to include the start bound in the filter conditions.
-        include_end_bound (bool): Whether to include the end bound in the filter conditions.
+        alias (str): Query parameter name to use in API endpoints.
+        match_type (TimeMatchType): The comparison operator to use.
         description (Optional[str]): Custom description for the filter parameter.
-
-    Examples:
-        # Filter orders by creation date range (inclusive bounds)
-        order_date_filter = TimeRangeCriteria(
-            field="created_at",
-            start_alias="order_from",
-            end_alias="order_to",
-            include_start_bound=True,
-            include_end_bound=True
-        )
-
-        # Filter events by time range (exclusive bounds)
-        event_time_filter = TimeRangeCriteria(
-            field="event_time",
-            start_alias="after",
-            end_alias="before",
-            include_start_bound=False,
-            include_end_bound=False
-        )
-
-        # Filter logs by timestamp with custom description
-        log_filter = TimeRangeCriteria(
-            field="timestamp",
-            description="Filter log entries by time range"
-        )
     """
 
     def __init__(
         self,
         field: str,
-        start_alias: str = None,
-        end_alias: str = None,
-        include_start_bound: bool = True,
-        include_end_bound: bool = True,
+        alias: str,
+        match_type: TimeMatchType,
         description: Optional[str] = None,
     ):
-        """Initialize the time range filter.
+        """
+        Initializes the time filter.
 
         Args:
             field (str): Model datetime field name to filter on.
-            start_alias (str, optional): Query parameter name for start time.
-            end_alias (str, optional): Query parameter name for end time.
-            include_start_bound (bool): Whether to include the start bound in the filter conditions.
-            include_end_bound (bool): Whether to include the end bound in the filter conditions.
-            description (Optional[str]): Custom description for the filter parameter.
+            alias (str): Query parameter name for the API.
+            match_type (TimeMatchType): The comparison operator.
+            description (Optional[str]): Custom description for documentation.
         """
         self.field = field
-        self.start_alias = start_alias or f"{field}_start"
-        self.end_alias = end_alias or f"{field}_end"
-        self.include_start_bound = include_start_bound
-        self.include_end_bound = include_end_bound
+        self.alias = alias
+        self.match_type = match_type
         self.description = description or self._get_default_description()
 
     def _get_default_description(self) -> str:
-        """Get default description for the filter.
-
-        Returns:
-            str: Default description based on the filter configuration
         """
-        bounds = []
-        if self.include_start_bound:
-            bounds.append("inclusive start")
-        else:
-            bounds.append("exclusive start")
-        if self.include_end_bound:
-            bounds.append("inclusive end")
-        else:
-            bounds.append("exclusive end")
-        return f"Filter by time range on field '{self.field}' ({', '.join(bounds)})"
+        Generates a default description based on the filter configuration.
+        """
+        descriptions = {
+            TimeMatchType.GTE: f"Filter where '{self.field}' is on or after the given datetime.",
+            TimeMatchType.GT: f"Filter where '{self.field}' is after the given datetime.",
+            TimeMatchType.LTE: f"Filter where '{self.field}' is on or before the given datetime.",
+            TimeMatchType.LT: f"Filter where '{self.field}' is before the given datetime.",
+        }
+        return descriptions.get(self.match_type, f"Filter by {self.field}")
 
     def build_filter(self, orm_model: type[DeclarativeBase]):
-        """Build a FastAPI dependency for time range filtering.
-
-        Args:
-            orm_model (type[DeclarativeBase]): SQLAlchemy model class to create filter for.
-
-        Returns:
-            callable: FastAPI dependency function that returns list of SQLAlchemy filter conditions.
-
-        Raises:
-            InvalidFieldError: If the specified field doesn't exist on the model.
+        """
+        Builds a FastAPI dependency for single datetime value filtering.
         """
         self._validate_field_exists(orm_model, self.field)
+        self._validate_enum_value(
+            self.match_type, TimeMatchType.get_all_operators(), "match_type"
+        )
         model_field = getattr(orm_model, self.field)
 
         def filter_dependency(
-            start: Optional[datetime] = Query(
+            value: Optional[datetime] = Query(
                 default=None,
-                alias=self.start_alias,
-                description=f"Start time for filtering {self.field}",
-            ),
-            end: Optional[datetime] = Query(
-                default=None,
-                alias=self.end_alias,
-                description=f"End time for filtering {self.field}",
-            ),
-        ) -> list[ColumnElement]:
-            """Generate time range filter conditions.
-
-            Args:
-                start (Optional[datetime]): Start datetime for range filter.
-                end (Optional[datetime]): End datetime for range filter.
-
-            Returns:
-                list: List of SQLAlchemy filter conditions.
-
-            Raises:
-                InvalidValueError: If the date range is invalid.
+                alias=self.alias,
+                description=self.description,
+            )
+        ) -> Optional[ColumnElement]:
             """
-            filters = []
+            Generates a datetime comparison filter condition.
+            """
+            if value is None:
+                return None
 
-            if start is not None and end is not None and start > end:
-                raise InvalidValueError("Start date must be before end date")
-
-            if start is not None:
-                if self.include_start_bound:
-                    filters.append(model_field >= start)
-                else:
-                    filters.append(model_field > start)
-            if end is not None:
-                if self.include_end_bound:
-                    filters.append(model_field <= end)
-                else:
-                    filters.append(model_field < end)
-
-            return filters
+            if self.match_type == TimeMatchType.GTE:
+                return model_field >= value
+            elif self.match_type == TimeMatchType.GT:
+                return model_field > value
+            elif self.match_type == TimeMatchType.LTE:
+                return model_field <= value
+            elif self.match_type == TimeMatchType.LT:
+                return model_field < value
+            else:
+                raise InvalidValueError(f"Invalid match type: {self.match_type}")
 
         return filter_dependency
 

@@ -1,8 +1,10 @@
 from datetime import datetime, timedelta, UTC
 from dateutil.relativedelta import relativedelta
+import pytest
 from fastapi_filterdeps.base import create_combined_filter_dependency
 from fastapi_filterdeps.generic.time import (
-    TimeRangeCriteria,
+    TimeCriteria,
+    TimeMatchType,
     RelativeTimeCriteria,
     TimeUnit,
 )
@@ -10,117 +12,72 @@ from tests.conftest import BaseFilterTest
 from tests.models import BasicModel
 
 
-class TestTimeRangeCriteria(BaseFilterTest):
-    def test_filter_time_range_inclusive(self):
+class TestTimeCriteria(BaseFilterTest):
+    """
+    Tests for the updated TimeCriteria class.
+    It verifies all comparison operations defined in TimeMatchType.
+    """
+
+    # Use parametrize to test all match types with a single test function
+    @pytest.mark.parametrize(
+        "match_type, operator",
+        [
+            (TimeMatchType.GTE, lambda a, b: a >= b),
+            (TimeMatchType.GT, lambda a, b: a > b),
+            (TimeMatchType.LTE, lambda a, b: a <= b),
+            (TimeMatchType.LT, lambda a, b: a < b),
+        ],
+    )
+    def test_filter_time_match_types(self, match_type, operator):
+        """
+        Verify that each TimeMatchType filters the datetime field correctly.
+        """
         filter_deps = create_combined_filter_dependency(
-            TimeRangeCriteria(
+            TimeCriteria(
                 field="created_at",
-                include_start_bound=True,
-                include_end_bound=True,
+                alias="created_since",
+                match_type=match_type,
             ),
             orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
 
-        start = datetime.now(UTC) - timedelta(days=7)
-        end = datetime.now(UTC)
+        # Select a reference time from the test data for comparison
+        reference_time = self.test_data["items"][2].created_at
+        reference_time = reference_time.replace(tzinfo=UTC)
 
+        # Make a request with the reference time
         response = self.client.get(
-            "/test-items",
-            params={
-                "created_at_start": start.isoformat(),
-                "created_at_end": end.isoformat(),
-            },
+            "/test-items", params={"created_since": reference_time.isoformat()}
         )
         assert response.status_code == 200
-        assert len(response.json()) > 0
-        assert all(
-            start
-            <= datetime.fromisoformat(item["created_at"]).replace(tzinfo=UTC)
-            <= end
-            for item in response.json()
-        )
+        data = response.json()
+        assert len(data) > 0
 
-    def test_filter_time_range_exclusive(self):
+        # Assert that all returned items satisfy the condition
+        for item in data:
+            item_time = datetime.fromisoformat(item["created_at"]).replace(tzinfo=UTC)
+            assert operator(item_time, reference_time)
+
+    def test_filter_time_no_value(self):
+        """
+        Verify that if no time value is provided, no filter is applied.
+        """
         filter_deps = create_combined_filter_dependency(
-            TimeRangeCriteria(
+            TimeCriteria(
                 field="created_at",
-                include_start_bound=False,
-                include_end_bound=False,
+                alias="created_since",
+                match_type=TimeMatchType.GTE,
             ),
             orm_model=BasicModel,
         )
         self.setup_filter(filter_deps=filter_deps)
 
-        start = datetime.now(UTC) - timedelta(days=7)
-        end = datetime.now(UTC)
-
-        response = self.client.get(
-            "/test-items",
-            params={
-                "created_at_start": start.isoformat(),
-                "created_at_end": end.isoformat(),
-            },
-        )
+        # Make a request without the 'created_since' parameter
+        response = self.client.get("/test-items")
         assert response.status_code == 200
-        assert len(response.json()) > 0
-        assert all(
-            start < datetime.fromisoformat(item["created_at"]).replace(tzinfo=UTC) < end
-            for item in response.json()
-        )
-
-    def test_filter_time_range_start_only(self):
-        filter_deps = create_combined_filter_dependency(
-            TimeRangeCriteria(
-                field="created_at",
-                include_start_bound=True,
-                include_end_bound=True,
-            ),
-            orm_model=BasicModel,
-        )
-        self.setup_filter(filter_deps=filter_deps)
-
-        start = datetime.now(UTC) - timedelta(days=7)
-
-        response = self.client.get(
-            "/test-items", params={"created_at_start": start.isoformat()}
-        )
-        assert response.status_code == 200
-        assert len(response.json()) > 0
-        assert all(
-            datetime.fromisoformat(item["created_at"]).replace(tzinfo=UTC) >= start
-            for item in response.json()
-        )
-
-    def test_filter_time_range_mixed_bounds(self):
-        filter_deps = create_combined_filter_dependency(
-            TimeRangeCriteria(
-                field="created_at",
-                include_start_bound=True,
-                include_end_bound=False,
-            ),
-            orm_model=BasicModel,
-        )
-        self.setup_filter(filter_deps=filter_deps)
-
-        start = datetime.now(UTC) - timedelta(days=7)
-        end = datetime.now(UTC)
-
-        response = self.client.get(
-            "/test-items",
-            params={
-                "created_at_start": start.isoformat(),
-                "created_at_end": end.isoformat(),
-            },
-        )
-        assert response.status_code == 200
-        assert len(response.json()) > 0
-        assert all(
-            start
-            <= datetime.fromisoformat(item["created_at"]).replace(tzinfo=UTC)
-            < end
-            for item in response.json()
-        )
+        # All items should be returned
+        assert len(response.json()) == len(self.test_data["items"])
 
 
 class TestRelativeTimeCriteria(BaseFilterTest):

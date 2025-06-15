@@ -17,7 +17,7 @@ class TestNumericCriteria(BaseFilterTest):
                 field="count",
                 alias="min_count",
                 numeric_type=int,
-                operator=NumericFilterType.ge,  # Use 'greater than or equal' operator
+                operator=NumericFilterType.GTE,  # Use 'greater than or equal' operator
             ),
             orm_model=BasicModel,
         )
@@ -35,7 +35,7 @@ class TestNumericCriteria(BaseFilterTest):
                 field="count",
                 alias="max_count",
                 numeric_type=int,
-                operator=NumericFilterType.le,  # Use 'less than or equal' operator
+                operator=NumericFilterType.LTE,  # Use 'less than or equal' operator
             ),
             orm_model=BasicModel,
         )
@@ -53,13 +53,13 @@ class TestNumericCriteria(BaseFilterTest):
                 field="count",
                 alias="min_count",
                 numeric_type=int,
-                operator=NumericFilterType.ge,
+                operator=NumericFilterType.GTE,
             ),
             NumericCriteria(
                 field="count",
                 alias="max_count",
                 numeric_type=int,
-                operator=NumericFilterType.le,
+                operator=NumericFilterType.LTE,
             ),
             orm_model=BasicModel,
         )
@@ -79,13 +79,13 @@ class TestNumericCriteria(BaseFilterTest):
                 field="count",
                 alias="min_count_exclusive",
                 numeric_type=int,
-                operator=NumericFilterType.gt,  # Use 'greater than' operator
+                operator=NumericFilterType.GT,  # Use 'greater than' operator
             ),
             NumericCriteria(
                 field="count",
                 alias="max_count_exclusive",
                 numeric_type=int,
-                operator=NumericFilterType.lt,  # Use 'less than' operator
+                operator=NumericFilterType.LT,  # Use 'less than' operator
             ),
             orm_model=BasicModel,
         )
@@ -106,7 +106,7 @@ class TestNumericCriteria(BaseFilterTest):
                 field="count",
                 alias="count",
                 numeric_type=int,
-                operator=NumericFilterType.eq,  # Use 'equal' operator
+                operator=NumericFilterType.EQ,  # Use 'equal' operator
             ),
             orm_model=BasicModel,
         )
@@ -124,7 +124,7 @@ class TestNumericCriteria(BaseFilterTest):
                 field="count",
                 alias="count_ne",
                 numeric_type=int,
-                operator=NumericFilterType.ne,  # Use 'not equal' operator
+                operator=NumericFilterType.NE,  # Use 'not equal' operator
             ),
             orm_model=BasicModel,
         )
@@ -142,7 +142,7 @@ class TestNumericCriteria(BaseFilterTest):
                 field="count",
                 alias="count",
                 numeric_type=int,
-                operator=NumericFilterType.eq,
+                operator=NumericFilterType.EQ,
             ),
             orm_model=BasicModel,
         )

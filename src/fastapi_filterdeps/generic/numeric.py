@@ -1,6 +1,5 @@
-import operator
 from enum import Enum
-from typing import Any, Callable, Optional, Union
+from typing import Optional, Union
 
 from fastapi import Query
 from sqlalchemy import ColumnElement
@@ -13,12 +12,12 @@ from fastapi_filterdeps.exceptions import InvalidValueError
 class NumericFilterType(str, Enum):
     """Enum for numeric comparison operators."""
 
-    gt = ">"
-    ge = ">="
-    lt = "<"
-    le = "<="
-    eq = "=="
-    ne = "!="
+    GT = "gt"
+    GTE = "gte"
+    LT = "lt"
+    LTE = "lte"
+    EQ = "eq"
+    NE = "ne"
 
     @classmethod
     def get_all_operators(cls) -> set[str]:
@@ -53,17 +52,17 @@ class NumericCriteria(SqlFilterCriteriaBase):
 
     def _get_default_description(self) -> str:
         """Generate default description based on filter type."""
-        if self.operator == NumericFilterType.eq:
+        if self.operator == NumericFilterType.EQ:
             return f"Filter records where {self.field} is equal"
-        elif self.operator == NumericFilterType.ne:
+        elif self.operator == NumericFilterType.NE:
             return f"Filter records where {self.field} is not equal"
-        elif self.operator == NumericFilterType.gt:
+        elif self.operator == NumericFilterType.GT:
             return f"Filter records where {self.field} is greater than"
-        elif self.operator == NumericFilterType.ge:
+        elif self.operator == NumericFilterType.GTE:
             return f"Filter records where {self.field} is greater than or equal"
-        elif self.operator == NumericFilterType.lt:
+        elif self.operator == NumericFilterType.LT:
             return f"Filter records where {self.field} is less than"
-        elif self.operator == NumericFilterType.le:
+        elif self.operator == NumericFilterType.LTE:
             return f"Filter records where {self.field} is less than or equal"
         else:
             raise InvalidValueError(f"Invalid operator: {self.operator}")
@@ -87,17 +86,17 @@ class NumericCriteria(SqlFilterCriteriaBase):
             if value is None:
                 return None
 
-            if self.operator == NumericFilterType.eq:
+            if self.operator == NumericFilterType.EQ:
                 return orm_field == value
-            elif self.operator == NumericFilterType.ne:
+            elif self.operator == NumericFilterType.NE:
                 return orm_field != value
-            elif self.operator == NumericFilterType.gt:
+            elif self.operator == NumericFilterType.GT:
                 return orm_field > value
-            elif self.operator == NumericFilterType.ge:
+            elif self.operator == NumericFilterType.GTE:
                 return orm_field >= value
-            elif self.operator == NumericFilterType.lt:
+            elif self.operator == NumericFilterType.LT:
                 return orm_field < value
-            elif self.operator == NumericFilterType.le:
+            elif self.operator == NumericFilterType.LTE:
                 return orm_field <= value
             else:
                 raise InvalidValueError(f"Invalid operator: {self.operator}")

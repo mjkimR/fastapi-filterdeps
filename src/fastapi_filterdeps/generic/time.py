@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Optional
-from dateutil.relativedelta import relativedelta
+from typing import Callable, List, Optional
 
+from dateutil.relativedelta import relativedelta
 from fastapi import Query
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.sql.expression import ColumnElement
@@ -12,14 +12,13 @@ from fastapi_filterdeps.exceptions import InvalidValueError
 
 
 class TimeMatchType(str, Enum):
-    """
-    Enumeration for time-based matching operations.
+    """Defines the available comparison operators for datetime fields.
 
-    Defines the available comparison operators for datetime fields.
-    - GTE: Greater than or equal to (>=)
-    - GT: Greater than (>)
-    - LTE: Less than or equal to (<=)
-    - LT: Less than (<)
+    Attributes:
+        GTE: Greater than or equal to (>=).
+        GT: Greater than (>).
+        LTE: Less than or equal to (<=).
+        LT: Less than (<).
     """
 
     GTE = "gte"
@@ -29,18 +28,18 @@ class TimeMatchType(str, Enum):
 
     @classmethod
     def get_all_operators(cls) -> set[str]:
-        """Get all available operators."""
+        """Returns a set of all available operator values."""
         return {op.value for op in cls}
 
 
 class TimeUnit(str, Enum):
-    """Time units for relative date calculations.
+    """Defines time units for relative date calculations.
 
-    Available units:
-    - DAY: Daily unit
-    - WEEK: Weekly unit
-    - MONTH: Monthly unit
-    - YEAR: Yearly unit
+    Attributes:
+        DAY: Represents a day.
+        WEEK: Represents a week.
+        MONTH: Represents a calendar month.
+        YEAR: Represents a calendar year.
     """
 
     DAY = "day"
@@ -50,17 +49,43 @@ class TimeUnit(str, Enum):
 
 
 class TimeCriteria(SqlFilterCriteriaBase):
-    """
-    Base filter for single datetime field comparisons.
+    """A filter for a single, absolute datetime comparison.
 
-    Provides a generic implementation for filtering datetime fields based on
-    a specific comparison operator (e.g., greater than, less than, equal to).
+    This class creates a filter for a datetime field against a specific point in
+    time, using an operator like "greater than" or "less than". To create a
+    fixed date range (e.g., from a start date to an end date), combine two
+    instances of this class.
 
     Attributes:
-        field (str): Model datetime field name to filter on.
-        alias (str): Query parameter name to use in API endpoints.
+        field (str): The name of the SQLAlchemy model's datetime field.
+        alias (str): The alias for the query parameter in the API endpoint.
         match_type (TimeMatchType): The comparison operator to use.
-        description (Optional[str]): Custom description for the filter parameter.
+        description (Optional[str]): A custom description for OpenAPI.
+
+    Examples:
+        # In a FastAPI app, define a fixed date range filter for a 'Post' model.
+
+        from .models import Post
+        from fastapi_filterdeps import create_combined_filter_dependency
+
+        post_filters = create_combined_filter_dependency(
+            # Sets the lower bound of the range (created_at >= value).
+            TimeCriteria(
+                field="created_at",
+                alias="created_after",
+                match_type=TimeMatchType.GTE
+            ),
+            # Sets the upper bound of the range (created_at <= value).
+            TimeCriteria(
+                field="created_at",
+                alias="created_before",
+                match_type=TimeMatchType.LTE
+            ),
+            orm_model=Post,
+        )
+
+        # A request like /posts?created_after=2025-01-01T00:00:00
+        # will find all posts created on or after that timestamp.
     """
 
     def __init__(
@@ -70,14 +95,13 @@ class TimeCriteria(SqlFilterCriteriaBase):
         match_type: TimeMatchType,
         description: Optional[str] = None,
     ):
-        """
-        Initializes the time filter.
+        """Initializes the absolute time filter criterion.
 
         Args:
-            field (str): Model datetime field name to filter on.
-            alias (str): Query parameter name for the API.
-            match_type (TimeMatchType): The comparison operator.
-            description (Optional[str]): Custom description for documentation.
+            field: The name of the SQLAlchemy model's datetime field.
+            alias: The alias for the query parameter in the API.
+            match_type: The comparison operator to use.
+            description: A custom description for the OpenAPI documentation.
         """
         self.field = field
         self.alias = alias
@@ -85,20 +109,31 @@ class TimeCriteria(SqlFilterCriteriaBase):
         self.description = description or self._get_default_description()
 
     def _get_default_description(self) -> str:
-        """
-        Generates a default description based on the filter configuration.
-        """
-        descriptions = {
-            TimeMatchType.GTE: f"Filter where '{self.field}' is on or after the given datetime.",
-            TimeMatchType.GT: f"Filter where '{self.field}' is after the given datetime.",
-            TimeMatchType.LTE: f"Filter where '{self.field}' is on or before the given datetime.",
-            TimeMatchType.LT: f"Filter where '{self.field}' is before the given datetime.",
+        """Generates a default description based on the filter's configuration."""
+        op_map = {
+            TimeMatchType.GTE: "on or after",
+            TimeMatchType.GT: "after",
+            TimeMatchType.LTE: "on or before",
+            TimeMatchType.LT: "before",
         }
-        return descriptions.get(self.match_type, f"Filter by {self.field}")
+        desc = op_map.get(self.match_type, "matches")
+        return f"Filter where '{self.field}' is {desc} the given datetime."
 
-    def build_filter(self, orm_model: type[DeclarativeBase]):
-        """
-        Builds a FastAPI dependency for single datetime value filtering.
+    def build_filter(
+        self, orm_model: type[DeclarativeBase]
+    ) -> Callable[..., Optional[ColumnElement]]:
+        """Builds a FastAPI dependency for single datetime value filtering.
+
+        Args:
+            orm_model: The SQLAlchemy model class to apply the filter to.
+
+        Returns:
+            A FastAPI dependency that returns a SQLAlchemy filter condition
+            or `None`.
+
+        Raises:
+            InvalidFieldError: If the specified `field` does not exist.
+            InvalidValueError: If the `match_type` is not a valid `TimeMatchType`.
         """
         self._validate_field_exists(orm_model, self.field)
         self._validate_enum_value(
@@ -113,85 +148,86 @@ class TimeCriteria(SqlFilterCriteriaBase):
                 description=self.description,
             )
         ) -> Optional[ColumnElement]:
-            """
-            Generates a datetime comparison filter condition.
+            """Generates a datetime comparison filter condition.
+
+            Args:
+                value: The datetime value from the query parameter.
+
+            Returns:
+                A SQLAlchemy filter expression, or `None` if no value was provided.
             """
             if value is None:
                 return None
 
-            if self.match_type == TimeMatchType.GTE:
-                return model_field >= value
-            elif self.match_type == TimeMatchType.GT:
-                return model_field > value
-            elif self.match_type == TimeMatchType.LTE:
-                return model_field <= value
-            elif self.match_type == TimeMatchType.LT:
-                return model_field < value
-            else:
-                raise InvalidValueError(f"Invalid match type: {self.match_type}")
+            op_map = {
+                TimeMatchType.GTE: model_field >= value,
+                TimeMatchType.GT: model_field > value,
+                TimeMatchType.LTE: model_field <= value,
+                TimeMatchType.LT: model_field < value,
+            }
+            return op_map.get(self.match_type)
 
         return filter_dependency
 
 
 class RelativeTimeCriteria(SqlFilterCriteriaBase):
-    """Base filter for relative time filtering.
+    """A filter for a dynamic, relative datetime range (e.g., "last 7 days").
 
-    Provides filtering for datetime fields using a reference date and offset.
+    This filter creates a date range based on a specified offset from a
+    reference date. The user provides the offset value and the time unit,
+    and the filter calculates the start and end dates for the query.
 
     Attributes:
-        field (str): Model datetime field name to filter on.
-        reference_alias (str): Query parameter name for reference date.
-        unit_alias (str): Query parameter name for time unit.
-        offset_alias (str): Query parameter name for offset value.
-        include_start_bound (bool): Whether to include the start bound in the filter conditions.
-        include_end_bound (bool): Whether to include the end bound in the filter conditions.
-        description (Optional[str]): Custom description for the filter parameter.
+        field (str): The name of the SQLAlchemy model's datetime field.
+        reference_alias (Optional[str]): Alias for the reference date parameter.
+            Defaults to `{field}_reference`.
+        unit_alias (Optional[str]): Alias for the time unit parameter. Defaults
+            to `{field}_unit`.
+        offset_alias (Optional[str]): Alias for the offset value parameter.
+            Defaults to `{field}_offset`.
+        include_start_bound (bool): If True, use `>=` for the start of the range.
+            If False, use `>`. Defaults to True.
+        include_end_bound (bool): If True, use `<=` for the end of the range.
+            If False, use `<`. Defaults to True.
+        description (Optional[str]): A custom description for OpenAPI.
 
     Examples:
-        # Filter orders from last 7 days
-        recent_orders_filter = RelativeTimeCriteria(
-            field="created_at",
-            reference_alias="from_date",
-            unit_alias="time_unit",
-            offset_alias="days_ago"
+        # In a FastAPI app, filter for posts created in the last 7 days.
+
+        from .models import Post
+        from fastapi_filterdeps import create_combined_filter_dependency
+
+        post_filters = create_combined_filter_dependency(
+            # Creates 'created_at_unit' and 'created_at_offset' params.
+            RelativeTimeCriteria(field="created_at"),
+            orm_model=Post,
         )
 
-        # Filter events from last month (exclusive bounds)
-        monthly_events_filter = RelativeTimeCriteria(
-            field="event_time",
-            include_start_bound=False,
-            include_end_bound=False,
-            description="Filter events from the past month"
-        )
-
-        # Filter user activity with custom time unit
-        activity_filter = RelativeTimeCriteria(
-            field="last_active",
-            unit_alias="inactive_period_unit",
-            offset_alias="inactive_period"
-        )
+        # A request to /posts?created_at_offset=-7&created_at_unit=day
+        # will find all posts from the last 7 days. The reference date
+        # defaults to the current time.
     """
 
     def __init__(
         self,
         field: str,
-        reference_alias: str = None,
-        unit_alias: str = None,
-        offset_alias: str = None,
+        reference_alias: Optional[str] = None,
+        unit_alias: Optional[str] = None,
+        offset_alias: Optional[str] = None,
         include_start_bound: bool = True,
         include_end_bound: bool = True,
         description: Optional[str] = None,
     ):
-        """Initialize the relative time filter.
+        """Initializes the relative time filter criterion.
 
         Args:
-            field (str): Model datetime field name to filter on.
-            reference_alias (str, optional): Query parameter name for reference time.
-            unit_alias (str, optional): Query parameter name for time unit.
-            offset_alias (str, optional): Query parameter name for offset value.
-            include_start_bound (bool): Whether to include the start bound in the filter conditions.
-            include_end_bound (bool): Whether to include the end bound in the filter conditions.
-            description (Optional[str]): Custom description for the filter parameter.
+            field: The model datetime field name to filter on.
+            reference_alias: Query parameter name for the reference time.
+            unit_alias: Query parameter name for the time unit.
+            offset_alias: Query parameter name for the offset value.
+            include_start_bound: Whether to include the start of the range.
+            include_end_bound: Whether to include the end of the range.
+            description: Custom description for the OpenAPI documentation.
         """
         self.field = field
         self.reference_alias = reference_alias or f"{field}_reference"
@@ -202,89 +238,83 @@ class RelativeTimeCriteria(SqlFilterCriteriaBase):
         self.description = description or self._get_default_description()
 
     def _get_default_description(self) -> str:
-        """Get default description for the filter.
-
-        Returns:
-            str: Default description based on the filter configuration
-        """
+        """Generates a default description for the filter."""
         bounds = []
-        if self.include_start_bound:
-            bounds.append("inclusive start")
-        else:
-            bounds.append("exclusive start")
-        if self.include_end_bound:
-            bounds.append("inclusive end")
-        else:
-            bounds.append("exclusive end")
-        return f"Filter by relative time range on field '{self.field}' ({', '.join(bounds)})"
+        bounds.append("inclusive" if self.include_start_bound else "exclusive")
+        bounds.append("inclusive" if self.include_end_bound else "exclusive")
+        return f"Filter by relative time on '{self.field}' ({bounds[0]} start, {bounds[1]} end)."
 
-    def build_filter(self, orm_model: type[DeclarativeBase]):
-        """Build a FastAPI dependency for relative time filtering.
+    def build_filter(
+        self, orm_model: type[DeclarativeBase]
+    ) -> Callable[..., List[ColumnElement]]:
+        """Builds a FastAPI dependency for relative time filtering.
 
         Args:
-            orm_model (type[DeclarativeBase]): SQLAlchemy model class to create filter for.
+            orm_model: The SQLAlchemy model class to apply the filter to.
 
         Returns:
-            callable: FastAPI dependency function that returns list of SQLAlchemy filter conditions.
+            A FastAPI dependency that returns a list of SQLAlchemy filter
+            conditions defining the date range.
 
         Raises:
-            InvalidFieldError: If the specified field doesn't exist on the model.
-            InvalidValueError: If the time unit is invalid.
+            InvalidFieldError: If the specified `field` does not exist.
         """
         self._validate_field_exists(orm_model, self.field)
         model_field = getattr(orm_model, self.field)
 
         def filter_dependency(
             reference: datetime = Query(
-                default=datetime.now(),
+                default_factory=datetime.now,
                 alias=self.reference_alias,
-                description=f"Reference date for filtering {self.field}",
+                description=f"Reference date for filtering '{self.field}'. Defaults to current time.",
             ),
             unit: TimeUnit = Query(
                 default=TimeUnit.DAY,
                 alias=self.unit_alias,
-                description="Time unit for offset calculation",
+                description="Time unit for the offset.",
             ),
             offset: int = Query(
                 default=-7,
                 alias=self.offset_alias,
-                description="Number of time units to offset from reference date",
+                description="Number of time units to offset from the reference date.",
             ),
-        ) -> list[ColumnElement]:
-            """Generate relative time filter conditions.
+        ) -> List[ColumnElement]:
+            """Generates relative time filter conditions.
 
             Args:
-                reference (datetime): Reference date for calculations.
-                unit (TimeUnit): Time unit for offset calculation.
-                offset (int): Number of time units to offset from reference date.
+                reference: The reference date for calculation.
+                unit: The time unit for the offset.
+                offset: The number of units to offset.
 
             Returns:
-                list: List of SQLAlchemy filter conditions.
+                A list of SQLAlchemy filter conditions.
             """
-            if unit == TimeUnit.DAY:
-                start = reference + timedelta(days=offset)
-            elif unit == TimeUnit.WEEK:
-                start = reference + timedelta(weeks=offset)
-            elif unit == TimeUnit.MONTH:
-                start = reference + relativedelta(months=offset)
-            elif unit == TimeUnit.YEAR:
-                start = reference + relativedelta(years=offset)
-            else:
-                raise ValueError(f"Invalid time unit: {unit}")
+            offset_map = {
+                TimeUnit.DAY: timedelta(days=offset),
+                TimeUnit.WEEK: timedelta(weeks=offset),
+                TimeUnit.MONTH: relativedelta(months=offset),
+                TimeUnit.YEAR: relativedelta(years=offset),
+            }
+            delta = offset_map.get(unit)
+            if delta is None:
+                raise InvalidValueError(f"Invalid time unit: {unit}")
+
+            start_date = reference + delta
+            end_date = reference
 
             if offset > 0:
-                start, reference = reference, start
+                start_date, end_date = end_date, start_date
 
             filters = []
             if self.include_start_bound:
-                filters.append(model_field >= start)
+                filters.append(model_field >= start_date)
             else:
-                filters.append(model_field > start)
+                filters.append(model_field > start_date)
 
             if self.include_end_bound:
-                filters.append(model_field <= reference)
+                filters.append(model_field <= end_date)
             else:
-                filters.append(model_field < reference)
+                filters.append(model_field < end_date)
 
             return filters
 

@@ -1,47 +1,58 @@
-from typing import Optional
+from typing import Callable, Optional
+
 from fastapi import Query
-from sqlalchemy.sql.expression import ColumnElement
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.sql.expression import ColumnElement
 
 from fastapi_filterdeps.base import SqlFilterCriteriaBase
 
 
 class RegexCriteria(SqlFilterCriteriaBase):
-    """Base filter for regular expression matching.
+    """A filter for matching a field against a regular expression.
 
-    Provides a generic implementation for filtering with regular expressions.
-    This implementation uses the regexp_match function from SQLAlchemy and (?i) flag for case-insensitive matching.
-    Note that regular expression support and syntax may vary by database engine.
+    This class provides a generic way to filter text fields using regular
+    expression patterns. It relies on the `regexp_match` function available in
+    SQLAlchemy, which translates to the native regex functions of the
+    underlying database (e.g., `REGEXP` or `~`).
+
+    Note:
+        Regular expression syntax and feature support (such as for case-
+        insensitivity flags like `(?i)`) can vary significantly between
+        different database systems (e.g., PostgreSQL, MySQL, SQLite).
 
     Attributes:
-        field (str): Model field name to filter on.
-        alias (str): Query parameter name to use in API endpoints.
-        case_sensitive (bool): Whether the matching should be case sensitive.
-        description (Optional[str]): Custom description for the filter parameter.
+        field (str): The name of the SQLAlchemy model field to filter on.
+        alias (str): The alias for the query parameter in the API endpoint.
+        case_sensitive (bool): If False, the pattern is modified to be
+            case-insensitive, typically by prepending `(?i)`. Defaults to False.
+        description (Optional[str]): A custom description for the OpenAPI
+            documentation. A default description is generated if not provided.
 
     Examples:
-        # Filter users by email domain pattern
-        email_filter = RegexCriteria(
-            field="email",
-            alias="email_pattern",
-            case_sensitive=False,
-            description="Filter users by email pattern (e.g. '@example\\.com$')"
+        # In a FastAPI app, define a regex filter for a 'Post' model's title.
+
+        from .models import Post
+        from fastapi_filterdeps import create_combined_filter_dependency
+
+        post_filters = create_combined_filter_dependency(
+            # Creates a 'title_pattern' query parameter for case-insensitive
+            # regex matching on the 'title' field.
+            RegexCriteria(
+                field="title",
+                alias="title_pattern",
+                case_sensitive=False,
+                description="Filter posts by a case-insensitive regex pattern on the title."
+            ),
+            orm_model=Post,
         )
 
-        # Filter products by name with case-sensitive pattern
-        name_filter = RegexCriteria(
-            field="name",
-            alias="name_pattern",
-            case_sensitive=True
-        )
+        # In your endpoint, a request like GET /posts?title_pattern=^hello
+        # will find all posts where the title starts with "hello" or "Hello", etc.
 
-        # Filter logs by message pattern
-        log_filter = RegexCriteria(
-            field="message",
-            alias="log_pattern",
-            case_sensitive=False,
-            description="Filter logs by message content using regex"
-        )
+        # @app.get("/posts")
+        # def list_posts(filters=Depends(post_filters)):
+        #     query = select(Post).where(*filters)
+        #     ...
     """
 
     def __init__(
@@ -51,13 +62,14 @@ class RegexCriteria(SqlFilterCriteriaBase):
         case_sensitive: bool = False,
         description: Optional[str] = None,
     ):
-        """Initialize the regex filter.
+        """Initializes the regular expression filter criterion.
 
         Args:
-            field (str): Model field name to filter on.
-            alias (str): Query parameter name to use in API endpoints.
-            case_sensitive (bool): Whether the regex matching should be case sensitive.
-            description (Optional[str]): Custom description for the filter parameter.
+            field: The name of the SQLAlchemy model field to filter on.
+            alias: The alias for the query parameter in the API.
+            case_sensitive: Whether the regex match should be case-sensitive.
+                Defaults to False.
+            description: Custom description for the OpenAPI documentation.
         """
         self.field = field
         self.alias = alias
@@ -65,27 +77,32 @@ class RegexCriteria(SqlFilterCriteriaBase):
         self.description = description or self._get_default_description()
 
     def _get_default_description(self) -> str:
-        """Get default description for the filter.
+        """Generates a default description for the filter.
 
         Returns:
-            str: Default description based on the filter configuration
+            The default description for the OpenAPI documentation.
         """
-        case_info = (
-            " (case sensitive)" if self.case_sensitive else " (case insensitive)"
-        )
-        return f"Filter by field '{self.field}' using regex pattern{case_info}"
+        case_info = "(case-sensitive)" if self.case_sensitive else "(case-insensitive)"
+        return f"Filter '{self.field}' by a {case_info} regex pattern."
 
-    def build_filter(self, orm_model: type[DeclarativeBase]):
-        """Build a FastAPI dependency for regex filtering.
+    def build_filter(
+        self, orm_model: type[DeclarativeBase]
+    ) -> Callable[..., Optional[ColumnElement]]:
+        """Builds a FastAPI dependency for regular expression filtering.
+
+        This method creates a callable FastAPI dependency that produces a
+        SQLAlchemy `regexp_match` filter condition.
 
         Args:
-            orm_model (type[DeclarativeBase]): SQLAlchemy model class to create filter for.
+            orm_model: The SQLAlchemy model class to apply the filter to.
 
         Returns:
-            callable: FastAPI dependency function that returns SQLAlchemy filter condition.
+            A FastAPI dependency that returns a SQLAlchemy filter
+            condition (`ColumnElement`) or `None`.
 
         Raises:
-            InvalidFieldError: If the specified field doesn't exist on the model.
+            InvalidFieldError: If the specified `field` does not exist on the
+                `orm_model`.
         """
         self._validate_field_exists(orm_model, self.field)
         model_field = getattr(orm_model, self.field)
@@ -95,13 +112,15 @@ class RegexCriteria(SqlFilterCriteriaBase):
                 default=None, alias=self.alias, description=self.description
             )
         ) -> Optional[ColumnElement]:
-            """Generate a regex match filter condition.
+            """Generates a regex match filter condition.
 
             Args:
-                value (Optional[str]): Regular expression pattern to match against.
+                value: The regex pattern string from the query parameter. If
+                    None, no filter is applied.
 
             Returns:
-                Optional[ColumnElement]: SQLAlchemy filter condition or None if no value provided.
+                A SQLAlchemy filter expression, or `None` if no pattern
+                was provided.
             """
             if value is None:
                 return None

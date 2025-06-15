@@ -8,35 +8,58 @@ from sqlalchemy.sql.expression import ColumnElement
 
 
 class JoinExistsCriteria(SqlFilterCriteriaBase):
-    """A filter criteria that checks for the existence (or non-existence) of related records.
+    """A filter that checks for the existence of related records meeting static conditions.
 
-    This criteria filters records based on whether related records in `join_model` (connected via
-    `join_condition`) exist that also satisfy the `filter_condition`. It uses correlated
-    subqueries with SQL `EXISTS`.
+    This criteria builds a filter that uses a correlated SQL EXISTS subquery.
+    It checks if any related records exist in `join_model` that satisfy a
+    pre-defined, static `filter_condition`. The activation of this filter
+    in an API endpoint is controlled by a single boolean query parameter.
 
-    Args:
-        alias (str): The alias for the query parameter used to activate this filter (e.g., "has_comments").
-        filter_condition (list[ColumnElement]): A list of SQLAlchemy expressions to be applied as
-                                                filters on the `join_model` within the subquery.
-        join_condition (ColumnElement): SQLAlchemy expression defining the relationship between
-                                        the main model and `join_model` (e.g., `ParentModel.id == ChildModel.parent_id`).
-                                        This condition is used to correlate the subquery.
-        join_model (type[DeclarativeBase]): The SQLAlchemy model class for the related records.
-        include_unrelated (bool, optional): If True, the filter will include records that do not have any related records.
-        description (Optional[str], optional): Custom description for the API documentation.
-                                               If `None`, a default description is generated.
+    The behavior regarding records that have no related entities at all can be
+    controlled with the `include_unrelated` flag.
 
-    Example:
-        ```python
-        # Filter posts based on the existence of approved comments.
-        criteria = JoinExistsCriteria(
-            alias="has_approved_comments",
-            filter_condition=[Comment.is_approved == True],
-            join_condition=Post.id == Comment.post_id,
-            join_model=Comment,
-            include_unrelated=True
+    Attributes:
+        alias (str): The alias for the boolean query parameter that activates
+            this filter in the API endpoint.
+        filter_condition (list[ColumnElement]): A list of static SQLAlchemy
+            expressions to apply as filters on the `join_model` inside the
+            subquery.
+        join_condition (ColumnElement): The SQLAlchemy expression that defines the
+            relationship between the main model and `join_model`, used to
+            correlate the subquery (e.g., `Post.id == Comment.post_id`).
+        join_model (type[DeclarativeBase]): The SQLAlchemy model class for the
+            related records to check for.
+        include_unrelated (bool): Controls how to treat records with no
+            relations. Defaults to False. If True, the filter logic is adjusted
+            to also include parent records that have no children in the
+            `join_model`.
+        description (Optional[str]): A custom description for the OpenAPI
+            documentation. A default is generated if not provided.
+
+    Examples:
+        # In a FastAPI application, define a filter to find Posts that have
+        # at least one approved comment.
+        # This will expose a query parameter `?has_approved_comments=true`.
+
+        from fastapi_filterdeps.base import create_combined_filter_dependency
+        from your_models import Post, Comment
+
+        post_filters = create_combined_filter_dependency(
+            JoinExistsCriteria(
+                alias="has_approved_comments",
+                filter_condition=[Comment.is_approved == True],
+                join_condition=Post.id == Comment.post_id,
+                join_model=Comment,
+                include_unrelated=False # Set to True to also get posts with no comments
+            ),
+            orm_model=Post,
         )
-        ```
+
+        # In your endpoint:
+        @app.get("/posts")
+        def list_posts(filters=Depends(post_filters)):
+            query = select(Post).where(*filters)
+            # ... execute query ...
     """
 
     def __init__(
@@ -48,16 +71,20 @@ class JoinExistsCriteria(SqlFilterCriteriaBase):
         include_unrelated: bool = False,
         description: Optional[str] = None,
     ):
-        """Initialize the join exists criteria.
+        """Initializes the JoinExistsCriteria.
 
         Args:
-            alias: The alias for the query parameter (e.g., "has_approved_comments").
-            filter_condition: List of SQLAlchemy filter conditions to apply to the `join_model`.
-            join_condition: SQLAlchemy expression defining the relationship between `orm_model`
-                            and `join_model`.
-            join_model: The SQLAlchemy model class to check for related records.
-            include_unrelated: If True, the filter will include records that do not have any related records.
-            description: Optional description for API documentation. If None, a default is generated.
+            alias (str): The alias for the query parameter (e.g., "has_approved_comments").
+            filter_condition (list[ColumnElement]): A list of static SQLAlchemy filter
+                conditions to apply to the `join_model`.
+            join_condition (ColumnElement): The SQLAlchemy expression defining the
+                relationship between the main model and `join_model`.
+            join_model (type[DeclarativeBase]): The SQLAlchemy model class to check
+                for related records in.
+            include_unrelated (bool): If True, the filter logic also includes
+                records that do not have any relations. Defaults to False.
+            description (Optional[str]): A custom description for the API
+                documentation. If None, a default is generated.
         """
         self.alias = alias
         self.filter_condition = filter_condition
@@ -67,18 +94,21 @@ class JoinExistsCriteria(SqlFilterCriteriaBase):
         self.description = description or self._get_default_description()
 
     def _get_default_description(self) -> str:
-        return "Filter by the existence of related records. If False, the filter is inverted."
+        """Generates a default description for the OpenAPI documentation."""
+        return "Filter by the existence of related records. Set to `false` to invert."
 
     def build_filter(
         self, orm_model: type[DeclarativeBase]
     ) -> Callable[..., Optional[ColumnElement]]:
-        """Build a FastAPI dependency for filtering based on joined table conditions.
+        """Builds a FastAPI dependency for filtering based on joined table conditions.
 
         Args:
-            orm_model: The main SQLAlchemy model class to create filter for
+            orm_model (type[DeclarativeBase]): The main SQLAlchemy model class that
+                the filter will be applied to.
+
         Returns:
-            A FastAPI dependency function that returns an SQLAlchemy filter condition
-            or None if no filtering should be applied
+            Callable: A FastAPI dependency that, when resolved, produces an
+                SQLAlchemy filter expression (`ColumnElement`) or `None`.
         """
 
         def filter_dependency(

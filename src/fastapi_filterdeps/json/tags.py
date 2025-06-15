@@ -1,58 +1,96 @@
-from typing import Optional
+from typing import Optional, List, Dict, Union, Callable
 
 from fastapi import Query
-from sqlalchemy import func
+from sqlalchemy import func, ColumnElement
 from sqlalchemy.orm import DeclarativeBase
 
 from fastapi_filterdeps.base import SqlFilterCriteriaBase
 
 
 class JsonDictTagsCriteria(SqlFilterCriteriaBase):
-    """Filter for JSON/JSONB tag fields.
+    """A specialized filter for querying key-value tags within a JSON column.
 
-    Provides filtering by tags stored in a JSON field. Supports both tag existence
-    checks and tag value matching. Works with both PostgreSQL JSONB and SQLite JSON1.
+    This filter is designed for a common use case where a JSON field contains a
+    dictionary of tags. It allows filtering by tag existence or by a specific
+    tag-value pair. The query parameter accepts multiple tags, which are
+    combined with an AND operator.
 
-    The tag system supports two formats:
-    1. Key-only tags (e.g., "urgent", "featured") - stored as {key: true}
-    2. Key-value pairs (e.g., "priority:high", "language:en") - stored as {key: "value"}
+    It supports two tag formats in query parameters:
+    1.  `key`: Checks for the existence of the tag key (e.g., `?tags=urgent`).
+    2.  `key:value`: Checks if the tag key matches the specified value (e.g.,
+        `?tags=priority:high`).
 
-    This dual format allows for both simple boolean flags and more detailed
-    categorization within the same tag field.
+    The filter is compatible with both PostgreSQL/MySQL (using JSON operators)
+    and SQLite (using the `JSON_EXTRACT` function).
 
     Attributes:
-        field (str): The model field name to filter on.
-        alias (str): The query parameter name.
-        use_json_extract (bool): Whether to use JSON_EXTRACT (True for SQLite, False for PostgreSQL)
+        field (str): The name of the SQLAlchemy model's JSON column that
+            contains the tags dictionary.
+        alias (str): The alias for the query parameter in the API endpoint.
+        use_json_extract (bool): If True, uses `func.json_extract` for filtering,
+            which is required for SQLite. Defaults to False.
+
+    Examples:
+        # Given a model `BasicModel` with a JSON `detail` field structured as:
+        # `{"tags": {"urgent": True, "language": "en", "priority": "high"}}`
+
+        from fastapi_filterdeps.base import create_combined_filter_dependency
+        from your_models import BasicModel
+
+        item_filters = create_combined_filter_dependency(
+            # This will expose a `?tags=` query parameter.
+            # For SQLite, set use_json_extract=True.
+            JsonDictTagsCriteria(
+                field="detail",
+                alias="tags",
+                use_json_extract=False
+            ),
+            orm_model=BasicModel,
+        )
+
+        # In your endpoint:
+        # A request to `/items?tags=urgent&tags=language:en` will find items
+        # that have both the "urgent" tag AND the "language:en" tag.
+        @app.get("/items")
+        def list_items(filters=Depends(item_filters)):
+            query = select(BasicModel).where(*filters)
+            # ... execute query ...
     """
 
-    def __init__(self, field: str, alias: str, use_json_extract=False):
-        """Initialize the tags filter.
+    def __init__(self, field: str, alias: str, use_json_extract: bool = False):
+        """Initializes the JsonDictTagsCriteria.
 
         Args:
-            field (str): The name of the field to filter on.
-            alias (str): The query parameter name.
-            use_json_extract (bool): Use JSON_EXTRACT function (True for SQLite). Defaults to False.
+            field (str): The name of the JSON field in the SQLAlchemy model.
+            alias (str): The alias for the query parameter in the API.
+            use_json_extract (bool): If True, use the `JSON_EXTRACT` function,
+                which is necessary for SQLite compatibility. Defaults to False.
         """
         self.field = field
         self.alias = alias
         self.use_json_extract = use_json_extract
 
     @classmethod
-    def parse_tags_from_query(cls, tags_query: list[str]) -> dict[str, str | bool]:
-        """Parse tag query parameters into a structured dictionary.
+    def parse_tags_from_query(
+        cls, tags_query: List[str]
+    ) -> Dict[str, Union[str, bool]]:
+        """Parses a list of tag query strings into a structured dictionary.
 
-        Converts raw query parameters into a structured dictionary of tag criteria.
+        This method converts raw query parameter strings into a dictionary of
+        tag criteria, distinguishing between existence checks and value checks.
 
         Args:
-            tags_query (list[str]): A list of tag strings in either 'key' or 'key:value' format.
+            tags_query (List[str]): A list of tag strings from the query, where
+                each string is in either 'key' or 'key:value' format.
 
         Returns:
-            dict[str, str | bool]: A dictionary mapping tag keys to their values
-                (or True for existence checks).
+            Dict[str, Union[str, bool]]: A dictionary mapping each tag key to
+                its value, or to `True` if it's an existence check.
 
-        Example:
-            ["priority", "language:en"] becomes {"priority": True, "language": "en"}
+        Examples:
+            >>> query = ["priority:high", "urgent"]
+            >>> JsonDictTagsCriteria.parse_tags_from_query(query)
+            {'priority': 'high', 'urgent': True}
         """
         parsed_tags = {}
         for item in tags_query:
@@ -63,59 +101,58 @@ class JsonDictTagsCriteria(SqlFilterCriteriaBase):
                 parsed_tags[item.strip()] = True
         return parsed_tags
 
-    def build_filter(self, orm_model: type[DeclarativeBase]):
-        """Build a FastAPI dependency for filtering by tags.
+    def build_filter(
+        self, orm_model: type[DeclarativeBase]
+    ) -> Callable[..., Optional[List[ColumnElement]]]:
+        """Builds a FastAPI dependency for filtering by a list of tags.
 
         Args:
-            orm_model (type[DeclarativeBase]): The SQLAlchemy model class to create filter conditions for.
+            orm_model (type[DeclarativeBase]): The SQLAlchemy model class that
+                the filter will be applied to.
 
         Returns:
-            callable: A FastAPI dependency function that returns a list of SQLAlchemy filter conditions
-                for filtering by tags.
+            Callable: A FastAPI dependency that, when resolved, produces a list
+                of SQLAlchemy filter expressions or `None`.
         """
         self._validate_field_exists(orm_model, self.field)
 
         def filter_dependency(
-            tags: Optional[list[str]] = Query(
-                None,
+            tags: Optional[List[str]] = Query(
+                default=None,
                 alias=self.alias,
-                description="List of tags in 'key' or 'key:value' format. Example: tags=summary&tags=language:en",
+                description="Filter by tags. Use 'key' for existence or 'key:value' for a specific value. "
+                "Multiple tags are combined with AND. Example: ?tags=urgent&tags=lang:en",
             )
-        ):
-            """Generate tag filter conditions.
-
-            Args:
-                tags (Optional[list[str]]): List of tag strings to filter by.
-
-            Returns:
-                Optional[list]: List of SQLAlchemy filter conditions or None if no tags provided.
-            """
-            if tags is None:
+        ) -> Optional[List[ColumnElement]]:
+            """Generates a list of tag-based filter conditions."""
+            if not tags:
                 return None
 
             filters = []
             tags_dict = self.parse_tags_from_query(tags)
-            field = getattr(orm_model, self.field)
+            orm_field = getattr(orm_model, self.field)
 
             for key, value in tags_dict.items():
                 if self.use_json_extract:
-                    # SQLite JSON1 방식
-                    json_path = f"$.tags.{key}"  # Add 'tags' to the path
-                    extracted = func.json_extract(field, json_path)
-
+                    # SQLite JSON1 style
+                    json_path = f"$.tags.{key}"
+                    extracted = func.json_extract(orm_field, json_path)
                     if isinstance(value, bool):
-                        # 존재 여부 체크
+                        # Existence check
                         filters.append(extracted.isnot(None))
                     else:
-                        # 값 비교
+                        # Value match
                         filters.append(extracted == value)
                 else:
-                    # PostgreSQL JSONB 방식
+                    # PostgreSQL/MySQL JSONB style
+                    target_tag = orm_field["tags"][key]
                     if isinstance(value, bool):
-                        filters.append(field["tags"][key].isnot(None))
+                        # Existence check
+                        filters.append(target_tag.isnot(None))
                     else:
-                        filters.append(field["tags"][key].as_string() == value)
+                        # Value match, casting the JSONB value to text for comparison
+                        filters.append(target_tag.as_string() == value)
 
-            return filters
+            return filters if filters else None
 
         return filter_dependency

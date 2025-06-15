@@ -1,4 +1,4 @@
-from typing import Optional, Callable
+from typing import Optional, Callable, List
 
 from fastapi import Depends
 from sqlalchemy import select, and_, or_, not_, exists as sql_exists
@@ -11,56 +11,94 @@ from sqlalchemy.sql.expression import ColumnElement
 
 
 class JoinNestedFilterCriteria(SqlFilterCriteriaBase):
-    """A filter criteria that checks for the existence (or non-existence) of related records
-    that match nested criteria, using correlated subqueries with SQL `EXISTS`.
+    """Filters based on related records that match dynamic, nested criteria.
 
-    When any of the join criteria returns None (meaning no filtering should be applied),
-    this filter will also return None to indicate no filtering should occur.
+    This powerful criteria uses a correlated SQL EXISTS subquery to filter
+    records based on attributes of their related records. Unlike
+    `JoinExistsCriteria`, the conditions applied to the related records are
+    not static; they are dynamically generated from other filter criteria
+    that you provide.
 
-    Args:
-        filter_criteria (List[SqlFilterCriteriaBase]): List of filter criteria to apply on the joined table
-        join_condition (ColumnElement): SQLAlchemy expression defining the relationship between
-                                        the main model and `join_model` (e.g., `ParentModel.id == ChildModel.parent_id`).
-                                        This condition is used to correlate the subquery.
-        join_model (type[DeclarativeBase]): The SQLAlchemy model to join with
-        exclude (bool, optional): If True, excludes matching records instead of including them.
-        include_unrelated (bool, optional): If True, the filter will include records that do not have any related records.
-        description (Optional[str], optional): Description of the filter criteria. Defaults to None.
+    This allows you to create API endpoints where users can filter a parent
+    resource (e.g., Posts) based on query parameters that apply to a child
+    resource (e.g., Comments). For example, finding all posts that have
+    comments containing the word "support".
 
-    Example:
-        ```python
-        # Filter posts that have approved comments.
-        # If exclude=False, is_outer=True, and "is_approved" filter is active:
-        #   - Includes posts with approved comments
-        #   - Includes posts with no comments at all
-        criteria = JoinNestedFilterCriteria(
-            filter_criteria=[CommentFilterCriteria(...)],
-            join_condition=Post.id == Comment.post_id,
-            join_model=Comment,
-            include_unrelated=True
+    If none of the nested `filter_criteria` are activated by the user's query,
+    this entire filter becomes inactive and will not affect the query.
+
+    Attributes:
+        filter_criteria (List[SqlFilterCriteriaBase]): A list of filter criteria
+            instances (e.g., `StringCriteria`) to be dynamically applied to
+            the `join_model`.
+        join_condition (ColumnElement): The SQLAlchemy expression defining the
+            relationship between the main model and `join_model` (e.g.,
+            `Post.id == Comment.post_id`).
+        join_model (type[DeclarativeBase]): The SQLAlchemy model class for the
+            related records.
+        exclude (bool): If True, the logic is inverted to find records where
+            related items *do not* match the nested filters. Defaults to False.
+        include_unrelated (bool): Controls how to treat records with no
+            relations at all. Defaults to False.
+        description (Optional[str]): A custom description for the OpenAPI
+            documentation. Currently not used as this filter is activated by
+            its nested criteria.
+
+    Examples:
+        # In a FastAPI application, define a filter to find Posts based on
+        # properties of their Comments, which are provided as query params.
+
+        from fastapi_filterdeps.base import create_combined_filter_dependency
+        from fastapi_filterdeps.generic.string import StringCriteria
+        from fastapi_filterdeps.generic.binary import BinaryCriteria, BinaryFilterType
+        from your_models import Post, Comment
+
+        # Define criteria that can be applied to the Comment model
+        comment_content_filter = StringCriteria(field="content", alias="comment_contains")
+        comment_approved_filter = BinaryCriteria(field="is_approved", alias="comment_is_approved")
+
+        # Create the nested filter for the Post model
+        post_filters = create_combined_filter_dependency(
+            JoinNestedFilterCriteria(
+                filter_criteria=[comment_content_filter, comment_approved_filter],
+                join_condition=Post.id == Comment.post_id,
+                join_model=Comment,
+                exclude=False
+            ),
+            orm_model=Post
         )
-        ```
+
+        # In your endpoint, users can now filter posts like:
+        # ?comment_contains=hello&comment_is_approved=true
+        @app.get("/posts")
+        def list_posts(filters=Depends(post_filters)):
+            query = select(Post).where(*filters)
+            # ... execute query ...
     """
 
     def __init__(
         self,
-        filter_criteria: list[SqlFilterCriteriaBase],
+        filter_criteria: List[SqlFilterCriteriaBase],
         join_condition: ColumnElement,
         join_model: type[DeclarativeBase],
         exclude: bool = False,
         include_unrelated: bool = False,
         description: Optional[str] = None,
     ):
-        """Initialize the join exists criteria.
+        """Initializes the JoinNestedFilterCriteria.
 
         Args:
-            join_criteria: List of filter criteria to apply to the joined table
-            join_condition: SQLAlchemy expression defining the join condition
-            join_model: The SQLAlchemy model class to join with.
-            exclude: If True, inverts the existence check (e.g., `NOT EXISTS` or complex logic with `is_outer`).
-                     Defaults to False.
-            include_unrelated: If True, the filter will include records that do not have any related records.
-            description: Optional description of the filter for API documentation.
+            filter_criteria (List[SqlFilterCriteriaBase]): A list of filter criteria
+                to be applied to the `join_model`.
+            join_condition (ColumnElement): The SQLAlchemy expression defining the
+                relationship between the main model and `join_model`.
+            join_model (type[DeclarativeBase]): The SQLAlchemy model class to join with.
+            exclude (bool): If True, inverts the existence check (effectively
+                applying a `NOT EXISTS` condition). Defaults to False.
+            include_unrelated (bool): If True, the filter logic also includes
+                records that do not have any relations. Defaults to False.
+            description (Optional[str]): A custom description for the API
+                documentation.
         """
         self.filter_criteria = filter_criteria
         self.join_condition = join_condition
@@ -72,41 +110,42 @@ class JoinNestedFilterCriteria(SqlFilterCriteriaBase):
     def build_filter(
         self, orm_model: type[DeclarativeBase]
     ) -> Callable[..., Optional[ColumnElement]]:
-        """Build a FastAPI dependency for filtering based on joined table conditions.
+        """Builds a FastAPI dependency that filters based on nested criteria.
+
+        This method constructs a dependency that itself depends on the result of
+        the combined nested `filter_criteria`.
 
         Args:
-            orm_model: The main SQLAlchemy model class to create filter for
+            orm_model (type[DeclarativeBase]): The main SQLAlchemy model class that
+                the filter will be applied to.
 
         Returns:
-            A FastAPI dependency function that returns an SQLAlchemy filter condition
-            or None if no filtering should be applied
+            Callable: A FastAPI dependency that, when resolved, produces an
+                SQLAlchemy filter expression (`ColumnElement`) or `None`.
         """
 
+        # This dependency combines all the nested filters for the JOINED model.
+        nested_filters_dependency = create_combined_filter_dependency(
+            *self.filter_criteria, orm_model=self.join_model
+        )
+
         def filter_dependency(
-            filter_criteria=Depends(
-                create_combined_filter_dependency(
-                    *self.filter_criteria, orm_model=self.join_model
-                )
-            )
+            # FastAPI will first resolve the dependency for the nested filters.
+            # `active_nested_filters` will be a list of ColumnElement if any of
+            # the corresponding query params were provided, otherwise it will be empty.
+            active_nested_filters: List[ColumnElement] = Depends(
+                nested_filters_dependency
+            ),
         ) -> Optional[ColumnElement]:
-            """Generate a filter condition based on joined table criteria.
-
-            Args:
-                filter_criteria: Filter conditions from the filter_criteria dependencies.
-                             Will be None if no criteria are active.
-
-            Returns:
-                SQLAlchemy filter condition or None if no filtering should be applied.
-                Returns None when filter_criteria is None or empty, making this filter
-                truly optional - it won't affect the query at all in this case.
-            """
-            if not filter_criteria:
+            """Generates the final filter condition if nested filters are active."""
+            # If no nested filters were activated, this filter is a no-op.
+            if not active_nested_filters:
                 return None
 
             stmt_related_satisfies_filters = (
                 select(self.join_model.id)
                 .where(self.join_condition)
-                .where(*filter_criteria)
+                .where(*active_nested_filters)
             )
             cond_related_satisfies_filters = sql_exists(stmt_related_satisfies_filters)
 

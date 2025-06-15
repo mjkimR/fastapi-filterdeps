@@ -7,11 +7,11 @@ from sqlalchemy import select, func
 
 from fastapi_filterdeps.base import create_combined_filter_dependency
 from fastapi_filterdeps.generic.binary import BinaryCriteria, BinaryFilterType
-from fastapi_filterdeps.generic.time import TimeRangeCriteria
+from fastapi_filterdeps.generic.time import TimeCriteria, TimeMatchType
 from fastapi_filterdeps.generic.enum import EnumCriteria, MultiEnumCriteria
 from fastapi_filterdeps.generic.numeric import (
-    NumericRangeCriteria,
-    NumericExactCriteria,
+    NumericCriteria,
+    NumericFilterType,
 )
 from fastapi_filterdeps.generic.string import (
     StringCriteria,
@@ -66,17 +66,24 @@ post_filters = create_combined_filter_dependency(
         enum_class=PostStatus,
     ),
     # Numeric range: view_count
-    NumericRangeCriteria(
+    NumericCriteria(
         field="view_count",
-        min_alias="min_views",
-        max_alias="max_views",
+        alias="min_views",
+        operator=NumericFilterType.GTE,
+        numeric_type=int,
+    ),
+    NumericCriteria(
+        field="view_count",
+        alias="max_views",
+        operator=NumericFilterType.LTE,
         numeric_type=int,
     ),
     # Numeric exact: view_count
-    NumericExactCriteria(
+    NumericCriteria(
         field="view_count",
         alias="views",
         numeric_type=int,
+        operator=NumericFilterType.EQ,
     ),
     # String: title contains
     StringCriteria(
@@ -96,8 +103,15 @@ post_filters = create_combined_filter_dependency(
         case_sensitive=False,
     ),
     # Time range: created_at
-    TimeRangeCriteria(
+    TimeCriteria(
         field="created_at",
+        alias="created_at_start",
+        match_type=TimeMatchType.GTE,
+    ),
+    TimeCriteria(
+        field="created_at",
+        alias="created_at_end",
+        match_type=TimeMatchType.LTE,
     ),
     # JoinExists: has approved comments
     JoinExistsCriteria(
@@ -127,7 +141,12 @@ def user_filters():
         BinaryCriteria(
             field="is_active", alias="active", filter_type=BinaryFilterType.IS_TRUE
         ),
-        TimeRangeCriteria(field="created_at"),
+        TimeCriteria(
+            field="created_at", alias="created_at_start", match_type=TimeMatchType.GTE
+        ),
+        TimeCriteria(
+            field="created_at", alias="created_at_end", match_type=TimeMatchType.LTE
+        ),
         orm_model=User,
     )
 
@@ -141,7 +160,12 @@ def comment_filters():
         BinaryCriteria(
             field="is_approved", alias="approved", filter_type=BinaryFilterType.IS_TRUE
         ),
-        TimeRangeCriteria(field="created_at"),
+        TimeCriteria(
+            field="created_at", alias="created_at_start", match_type=TimeMatchType.GTE
+        ),
+        TimeCriteria(
+            field="created_at", alias="created_at_end", match_type=TimeMatchType.LTE
+        ),
         orm_model=Comment,
     )
 
@@ -149,10 +173,16 @@ def comment_filters():
 # Vote filters example
 def vote_filters():
     return create_combined_filter_dependency(
-        NumericRangeCriteria(
+        NumericCriteria(
             field="score",
-            min_alias="min_score",
-            max_alias="max_score",
+            alias="min_score",
+            operator=NumericFilterType.GTE,
+            numeric_type=int,
+        ),
+        NumericCriteria(
+            field="score",
+            alias="max_score",
+            operator=NumericFilterType.LTE,
             numeric_type=int,
         ),
         orm_model=Vote,

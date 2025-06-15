@@ -2,7 +2,7 @@ import abc
 import inspect
 from typing import Optional, Type, Any, Union, Callable, Sequence, TYPE_CHECKING
 
-from sqlalchemy import Column, ColumnElement, Sequence
+from sqlalchemy import Column, ColumnElement
 import sqlalchemy
 from sqlalchemy.orm import DeclarativeBase
 
@@ -14,37 +14,84 @@ if TYPE_CHECKING:
 
 
 class SqlFilterCriteriaBase:
-    """Base class for filter options.
+    """Abstract base class for creating declarative SQL filter criteria.
 
-    All filter option classes should inherit from this abstract class
-    and implement the build_filter method.
+    This class serves as the foundation for all filter criteria. Subclasses
+    must implement the `build_filter` method, which defines the specific
+    filtering logic.
+
+    Instances of `SqlFilterCriteriaBase` subclasses are stateless "building blocks"
+    that describe how a particular field should be filtered based on API query
+    parameters. They do not perform any database operations themselves.
+
+    These building blocks are assembled into a single FastAPI dependency using the
+    `create_combined_filter_dependency` factory function. This separation of
+    concerns creates a pure, reusable, and testable filter layer.
+
+    Filter criteria can be combined using logical operators: `&` (AND),
+    `|` (OR), and `~` (NOT).
+
+    Examples:
+        # This is a conceptual example. `MyCustomFilter` would be a subclass.
+        # See specific criteria classes like `StringCriteria` for concrete usage.
+
+        class MyCustomFilter(SqlFilterCriteriaBase):
+            # ... implementation ...
+            def build_filter(self, orm_model):
+                # ... returns a dependency callable ...
+                pass
+
+        my_filter1 = MyCustomFilter(field="name", alias="name_filter")
+        my_filter2 = MyCustomFilter(field="status", alias="status_filter")
+
+        # Combine filters and create the final dependency
+        CombinedFilter = create_combined_filter_dependency(
+            my_filter1,
+            ~my_filter2,  # Example of using the NOT operator
+            orm_model=MyModel
+        )
+
+        @app.get("/items")
+        def get_items(filters: list = Depends(CombinedFilter)):
+            query = select(MyModel).where(*filters)
+            # ... execute query and return results ...
     """
 
     @abc.abstractmethod
     def build_filter(
         self, orm_model: type[DeclarativeBase]
     ) -> Callable[..., Optional[Union[ColumnElement, list[ColumnElement]]]]:
-        """Build a filter dependency for a given ORM model.
+        """Creates a FastAPI dependency that generates a filter condition.
+
+        This abstract method must be implemented by all subclasses. The
+        implementation should not return a filter condition directly. Instead,
+        it must return a callable (a function) that FastAPI can use as a
+        dependency. FastAPI will resolve this dependency for each incoming
+        request, calling it with the appropriate query parameters to generate
+        the live SQLAlchemy filter expression.
 
         Args:
-            orm_model (type[DeclarativeBase]): The SQLAlchemy model class to create filter conditions for.
+            orm_model (type[DeclarativeBase]): The SQLAlchemy model class to
+                which this filter will be applied.
 
         Returns:
-            callable: A FastAPI dependency function that returns SQLAlchemy filter conditions.
+            A FastAPI dependency. When called, it returns a SQLAlchemy
+            filter condition (`ColumnElement`), a list of conditions, or
+            `None` if the filter is not active for the current request.
         """
         raise NotImplementedError
 
     def _validate_field_exists(
         self, orm_model: type[DeclarativeBase], field: str
     ) -> None:
-        """Validate that a field exists on the model and has the correct type.
+        """Validates that a field exists on the specified ORM model.
 
         Args:
-            orm_model (type[DeclarativeBase]): The SQLAlchemy model class to check.
-            field (str): The field name to validate.
+            orm_model (type[DeclarativeBase]): The SQLAlchemy ORM model to inspect.
+            field (str): The name of the field to check for existence.
 
         Raises:
-            InvalidFieldError: If the field doesn't exist on the model or has an invalid type.
+            InvalidFieldError: If the field does not exist on the model.
         """
         if not hasattr(orm_model, field):
             raise InvalidFieldError(
@@ -54,15 +101,16 @@ class SqlFilterCriteriaBase:
     def _validate_enum_value(
         self, value: str, valid_values: set[str], field_name: str
     ) -> None:
-        """Validate that an enum value is valid.
+        """Validates that a given value is present in a set of allowed values.
 
         Args:
-            value (str): The value to validate.
-            valid_values (set[str]): Set of valid values.
-            field_name (str): Name of the field for error messages.
+            value (str): The input value to validate.
+            valid_values (set[str]): A set containing the valid string values.
+            field_name (str): The conceptual name of the field being validated,
+                used for generating a helpful error message.
 
         Raises:
-            InvalidValueError: If the value is not in valid_values.
+            InvalidValueError: If `value` is not a member of `valid_values`.
         """
         if value not in valid_values:
             raise InvalidValueError(
@@ -73,13 +121,14 @@ class SqlFilterCriteriaBase:
     def _validate_model_has_primary_keys(
         self, orm_model: type[DeclarativeBase]
     ) -> None:
-        """Validate that a model has primary keys.
+        """Validates that the given SQLAlchemy model has at least one primary key.
 
         Args:
-            orm_model (type[DeclarativeBase]): The SQLAlchemy model class to check.
+            orm_model (type[DeclarativeBase]): The SQLAlchemy ORM model to inspect.
 
         Raises:
-            InvalidFieldError: If the model doesn't have primary keys.
+            InvalidFieldError: If the model does not have any primary key columns
+                defined.
         """
         try:
             pk_columns = self.get_primary_keys(orm_model)
@@ -91,28 +140,31 @@ class SqlFilterCriteriaBase:
             raise InvalidFieldError(f"Failed to get primary keys: {str(e)}")
 
     def _get_default_description(self) -> str:
-        """Get default description for the filter.
+        """Generates a default description for the OpenAPI documentation.
 
-        This method should be overridden by subclasses to provide specific descriptions.
-        The base implementation provides a generic description.
+        This method can be overridden by subclasses to provide a more specific
+        and user-friendly description for the filter's query parameter in
+        the auto-generated API docs.
 
         Returns:
-            str: Default description based on the filter configuration
+            A default description string for the filter.
         """
         return f"Filter by field '{self.field}'"
 
     @classmethod
     def get_primary_keys(cls, model: type[DeclarativeBase]) -> Sequence[Column]:
-        """Get primary key columns for the given model.
+        """Retrieves the primary key columns for a given SQLAlchemy model.
 
         Args:
-            model: SQLAlchemy model class
+            model (type[DeclarativeBase]): The SQLAlchemy model class to inspect.
 
         Returns:
-            Sequence of primary key columns
+            A sequence of SQLAlchemy `Column` objects that constitute the
+            primary key of the model.
 
         Raises:
-            InvalidFieldError: If model inspection fails or no primary keys are found
+            InvalidFieldError: If the model cannot be inspected or has no
+                primary key columns.
         """
         inspector_result = sqlalchemy.inspect(model)
         if inspector_result is None:
@@ -123,18 +175,34 @@ class SqlFilterCriteriaBase:
         return primary_key_columns
 
     def __invert__(self) -> "InvertCriteria":
-        """
-        Creates a 'NOT' condition for this filter.
-        Usage: ~MyFilter()
+        """Creates a negated representation of this filter criterion (NOT).
+
+        This allows for inverting a filter's logic using the `~` operator.
+
+        Usage:
+            `~StringCriteria(field="name", alias="name_not_contains")`
+
+        Returns:
+            An `InvertCriteria` instance that wraps this filter.
         """
         from fastapi_filterdeps.combinators.invert import InvertCriteria
 
         return InvertCriteria(self)
 
     def __and__(self, other: "SqlFilterCriteriaBase") -> "CombineCriteria":
-        """
-        Creates an 'AND' condition with another filter.
-        Usage: MyFilter1() & MyFilter2()
+        """Combines this filter with another using a logical AND.
+
+        This allows for chaining filters together using the `&` operator.
+
+        Usage:
+            `StringCriteria(...) & NumericCriteria(...)`
+
+        Args:
+            other (SqlFilterCriteriaBase): The other filter criterion to combine
+                with this one.
+
+        Returns:
+            A `CombineCriteria` instance representing the logical AND.
         """
         from fastapi_filterdeps.combinators.combine import (
             CombineCriteria,
@@ -146,9 +214,19 @@ class SqlFilterCriteriaBase:
         return CombineCriteria(CombineOperator.AND, self, other)
 
     def __or__(self, other: "SqlFilterCriteriaBase") -> "CombineCriteria":
-        """
-        Creates an 'OR' condition with another filter.
-        Usage: MyFilter1() | MyFilter2()
+        """Combines this filter with another using a logical OR.
+
+        This allows for chaining filters together using the `|` operator.
+
+        Usage:
+            `StringCriteria(...) | OtherStringCriteria(...)`
+
+        Args:
+            other (SqlFilterCriteriaBase): The other filter criterion to combine
+                with this one.
+
+        Returns:
+            A `CombineCriteria` instance representing the logical OR.
         """
         from fastapi_filterdeps.combinators.combine import (
             CombineCriteria,
@@ -163,24 +241,79 @@ class SqlFilterCriteriaBase:
 def create_combined_filter_dependency(
     *filter_options: SqlFilterCriteriaBase,
     orm_model: Type[DeclarativeBase],
-):
-    """Dynamically creates filter parameters and returns a FastAPI dependency.
+) -> Callable:
+    """Dynamically creates a single FastAPI dependency from multiple filter criteria.
 
-    Creates a FastAPI dependency that processes multiple filter options and combines
-    their conditions based on the provided filter options.
+    This factory function is the primary user-facing interface of the library.
+    It takes multiple `SqlFilterCriteriaBase` instances (like `StringCriteria`,
+    `NumericCriteria`, etc.), inspects the query parameters required by each,
+    and constructs a single, unified dependency function.
+
+    This resulting function can be used directly with `fastapi.Depends` in an
+    endpoint. FastAPI will use its signature to handle request validation,
+    OpenAPI documentation generation, and dependency injection. When the endpoint
+    is called, the function executes and returns a list of active SQLAlchemy
+    filter conditions.
 
     Args:
-        *filter_options (SqlFilterCriteriaBase): One or more filter option instances.
-        orm_model (Type[DeclarativeBase]): The SQLAlchemy model class to create filter conditions for.
+        *filter_options (SqlFilterCriteriaBase): A sequence of filter criteria
+            instances that define the available filters for the endpoint.
+        orm_model (Type[DeclarativeBase]): The SQLAlchemy ORM model class that
+            the filters will be applied against.
 
     Returns:
-        callable: A FastAPI dependency function that returns combined SQLAlchemy filter conditions.
+        A FastAPI dependency. When injected into an endpoint, it
+        yields a list of SQLAlchemy `ColumnElement` expressions. This list
+        can be directly passed to a SQLAlchemy query's `.where()` clause
+        using the `*` splat operator.
 
     Raises:
-        InvalidValueError: When duplicate parameter names or aliases are found in the filter options.
+        ValueError: If two or more filter criteria are configured with the
+            same query parameter alias.
 
-    Example:
-        build_filter_conditions(FilterName(), FilterCreator(), orm_model=Memo)
+    Examples:
+        ```python
+        # In your FastAPI application (e.g., main.py)
+
+        from fastapi import FastAPI, Depends
+        from sqlalchemy import select
+        from fastapi_filterdeps import (
+            create_combined_filter_dependency,
+            StringCriteria,
+            NumericCriteria,
+            StringMatchType,
+            NumericMatchType
+        )
+        # Assume `User` is a SQLAlchemy ORM model
+
+        app = FastAPI()
+
+        # 1. Create the combined filter dependency
+        user_filters = create_combined_filter_dependency(
+            StringCriteria(
+                field="username",
+                alias="name",
+                match_type=StringMatchType.CONTAINS,
+                case_sensitive=False
+            ),
+            NumericCriteria(
+                field="karma",
+                alias="min_karma",
+                match_type=NumericMatchType.GREATER_THAN_OR_EQUAL
+            ),
+            orm_model=User,
+        )
+
+        # 2. Use the dependency in an endpoint
+        @app.get("/users/")
+        async def list_users(filters: list = Depends(user_filters)):
+            # `filters` will be a list like `[User.username.ilike('%search%')]`
+            query = select(User).where(*filters)
+            # ... execute query and return results ...
+            return {"message": "Query would be executed with applied filters."}
+
+        # The endpoint can be called like: /users/?name=john&min_karma=100
+        ```
     """
     param_definitions: dict[str, Any] = {}
     filter_builders_with_metadata: list[dict] = []
@@ -268,15 +401,22 @@ def create_combined_filter_dependency(
     return _combined_filter_dependency
 
 
-def combine_filter_conditions(*filters):
-    """Merges multiple filter conditions into a single list.
+def combine_filter_conditions(*filters) -> list[ColumnElement]:
+    """Flattens and merges multiple filter conditions into a single list.
+
+    This utility function is used internally by the dependency created by
+    `create_combined_filter_dependency`. It takes the results from individual
+    filter builders—which might be `None`, a single SQLAlchemy expression, or a
+    list of expressions—and consolidates them into a single, flat list that is
+    safe to use with a `.where()` clause.
 
     Args:
-        *filters: Filter conditions to merge. Can be None, individual conditions,
-                 or lists of conditions.
+        *filters: A sequence of filter conditions to merge. An item can be
+            `None`, a single `ColumnElement`, or a list of `ColumnElement`s.
 
     Returns:
-        list: A flat list of all non-None filter conditions.
+        A flat list containing all non-None filter
+        conditions.
     """
     results = []
     for f in filters:

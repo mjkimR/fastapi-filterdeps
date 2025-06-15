@@ -79,9 +79,9 @@ class OrderCriteria(SqlFilterCriteriaBase):
     def __init__(
         self,
         field: str,
+        alias: Optional[str] = None,
         partition_by: Optional[list[str]] = None,
         order_type: OrderType = OrderType.MAX,
-        alias: Optional[str] = None,
         description: Optional[str] = None,
     ):
         """Initialize the order filter.
@@ -89,11 +89,11 @@ class OrderCriteria(SqlFilterCriteriaBase):
         Args:
             field (str): Model field name to filter on. Can be any comparable field
                         (numeric, datetime, string, etc.)
+            alias (Optional[str]): Query parameter name to use in API endpoints
             partition_by (Optional[list[str]]): List of fields to partition by. These fields define
                                               the context in which to find the max/min values.
                                               If None, finds global max/min.
             order_type (OrderType): Type of ordering to apply (MAX or MIN)
-            alias (Optional[str]): Query parameter name to use in API endpoints
             description (Optional[str]): Custom description for the filter parameter
         """
         self.field = field

@@ -10,7 +10,7 @@ from fastapi_filterdeps.exceptions import InvalidFieldError, InvalidValueError
 
 if TYPE_CHECKING:
     from fastapi_filterdeps.combinators.invert import InvertCriteria
-    from fastapi_filterdeps.combinators.combine import CombineCriteria, CombineOperator
+    from fastapi_filterdeps.combinators.combine import CombineCriteria
 
 
 class SqlFilterCriteriaBase:
@@ -127,6 +127,8 @@ class SqlFilterCriteriaBase:
         Creates a 'NOT' condition for this filter.
         Usage: ~MyFilter()
         """
+        from fastapi_filterdeps.combinators.invert import InvertCriteria
+
         return InvertCriteria(self)
 
     def __and__(self, other: "SqlFilterCriteriaBase") -> "CombineCriteria":
@@ -134,6 +136,11 @@ class SqlFilterCriteriaBase:
         Creates an 'AND' condition with another filter.
         Usage: MyFilter1() & MyFilter2()
         """
+        from fastapi_filterdeps.combinators.combine import (
+            CombineCriteria,
+            CombineOperator,
+        )
+
         if isinstance(other, CombineCriteria) and other.operator == CombineOperator.AND:
             return other.__and__(self)  # Chain it correctly
         return CombineCriteria(CombineOperator.AND, self, other)
@@ -143,6 +150,11 @@ class SqlFilterCriteriaBase:
         Creates an 'OR' condition with another filter.
         Usage: MyFilter1() | MyFilter2()
         """
+        from fastapi_filterdeps.combinators.combine import (
+            CombineCriteria,
+            CombineOperator,
+        )
+
         if isinstance(other, CombineCriteria) and other.operator == CombineOperator.OR:
             return other.__or__(self)  # Chain it correctly
         return CombineCriteria(CombineOperator.OR, self, other)

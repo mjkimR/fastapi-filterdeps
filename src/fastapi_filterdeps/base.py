@@ -1,13 +1,16 @@
 import abc
 import inspect
-from typing import Optional, Type, Any, Union, Callable, Sequence
-
+from typing import Optional, Type, Any, Union, Callable, Sequence, TYPE_CHECKING
 
 from sqlalchemy import Column, ColumnElement, Sequence
 import sqlalchemy
 from sqlalchemy.orm import DeclarativeBase
 
 from fastapi_filterdeps.exceptions import InvalidFieldError, InvalidValueError
+
+if TYPE_CHECKING:
+    from fastapi_filterdeps.combinators.invert import InvertCriteria
+    from fastapi_filterdeps.combinators.combine import CombineCriteria, CombineOperator
 
 
 class SqlFilterCriteriaBase:
@@ -118,6 +121,31 @@ class SqlFilterCriteriaBase:
         if not primary_key_columns or len(primary_key_columns) == 0:
             raise InvalidFieldError(f"No primary key found for model {model.__name__}")
         return primary_key_columns
+
+    def __invert__(self) -> "InvertCriteria":
+        """
+        Creates a 'NOT' condition for this filter.
+        Usage: ~MyFilter()
+        """
+        return InvertCriteria(self)
+
+    def __and__(self, other: "SqlFilterCriteriaBase") -> "CombineCriteria":
+        """
+        Creates an 'AND' condition with another filter.
+        Usage: MyFilter1() & MyFilter2()
+        """
+        if isinstance(other, CombineCriteria) and other.operator == CombineOperator.AND:
+            return other.__and__(self)  # Chain it correctly
+        return CombineCriteria(CombineOperator.AND, self, other)
+
+    def __or__(self, other: "SqlFilterCriteriaBase") -> "CombineCriteria":
+        """
+        Creates an 'OR' condition with another filter.
+        Usage: MyFilter1() | MyFilter2()
+        """
+        if isinstance(other, CombineCriteria) and other.operator == CombineOperator.OR:
+            return other.__or__(self)  # Chain it correctly
+        return CombineCriteria(CombineOperator.OR, self, other)
 
 
 def create_combined_filter_dependency(

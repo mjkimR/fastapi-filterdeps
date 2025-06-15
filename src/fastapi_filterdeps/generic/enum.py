@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Callable, List, Optional, Type
+from typing import Any, Callable, List, Optional, Type
 
 from fastapi import Query
 from sqlalchemy.orm import DeclarativeBase
@@ -23,6 +23,7 @@ class EnumCriteria(SqlFilterCriteriaBase):
             type hinting.
         description (Optional[str]): A custom description for the OpenAPI
             documentation. A default description is generated if not provided.
+        **query_params: Additional keyword arguments to be passed to FastAPI's Query.
 
     Examples:
         # In a FastAPI app, define a filter for a 'Post' model with a 'status'
@@ -58,6 +59,7 @@ class EnumCriteria(SqlFilterCriteriaBase):
         alias: str,
         enum_class: Type[Enum],
         description: Optional[str] = None,
+        **query_params: Any,
     ):
         """Initializes the single-enum filter criteria.
 
@@ -67,11 +69,14 @@ class EnumCriteria(SqlFilterCriteriaBase):
             enum_class (Type[Enum]): The Enum class for type validation.
             description (Optional[str]): A custom description for the OpenAPI
                 documentation.
+            **query_params: Additional keyword arguments to be passed to FastAPI's Query.
+                (e.g., min_length=3, max_length=50)
         """
         self.field = field
         self.alias = alias
         self.enum_class = enum_class
         self.description = description or self._get_default_description()
+        self.query_params = query_params
 
     def _get_default_description(self) -> str:
         """Generates a default description for the filter.
@@ -110,6 +115,7 @@ class EnumCriteria(SqlFilterCriteriaBase):
                 default=None,
                 alias=self.alias,
                 description=self.description,
+                **self.query_params,
             )
         ) -> Optional[ColumnElement]:
             """Generates an enum equality filter condition.
@@ -142,6 +148,7 @@ class MultiEnumCriteria(SqlFilterCriteriaBase):
         enum_class (Type[Enum]): The Enum class for validation and type hinting.
         description (Optional[str]): A custom description for the OpenAPI
             documentation. A default description is generated if not provided.
+        **query_params: Additional keyword arguments to be passed to FastAPI's Query.
 
     Examples:
         # In a FastAPI app, define a filter for a 'Post' model that can have
@@ -177,6 +184,7 @@ class MultiEnumCriteria(SqlFilterCriteriaBase):
         alias: str,
         enum_class: Type[Enum],
         description: Optional[str] = None,
+        **query_params: Any,
     ):
         """Initializes the multi-enum filter criteria.
 
@@ -186,11 +194,14 @@ class MultiEnumCriteria(SqlFilterCriteriaBase):
             enum_class (Type[Enum]): The Enum class for type validation.
             description (Optional[str]): A custom description for the OpenAPI
                 documentation.
+            **query_params: Additional keyword arguments to be passed to FastAPI's Query.
+                (e.g., min_length=3, max_length=50)
         """
         self.field = field
         self.alias = alias
         self.enum_class = enum_class
         self.description = description or self._get_default_description()
+        self.query_params = query_params
 
     def _get_default_description(self) -> str:
         """Generates a default description for the filter.
@@ -229,6 +240,7 @@ class MultiEnumCriteria(SqlFilterCriteriaBase):
                 default=None,
                 alias=self.alias,
                 description=self.description,
+                **self.query_params,
             )
         ) -> Optional[ColumnElement]:
             """Generates a multi-enum 'IN' filter condition.

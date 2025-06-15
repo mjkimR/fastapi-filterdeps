@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict, Union, Callable
+from typing import Any, Optional, List, Dict, Union, Callable
 
 from fastapi import Query
 from sqlalchemy import func, ColumnElement
@@ -29,7 +29,7 @@ class JsonDictTagsCriteria(SqlFilterCriteriaBase):
         alias (str): The alias for the query parameter in the API endpoint.
         use_json_extract (bool): If True, uses `func.json_extract` for filtering,
             which is required for SQLite. Defaults to False.
-
+        **query_params: Additional keyword arguments to be passed to FastAPI's Query.
     Examples:
         # Given a model `BasicModel` with a JSON `detail` field structured as:
         # `{"tags": {"urgent": True, "language": "en", "priority": "high"}}`
@@ -57,7 +57,14 @@ class JsonDictTagsCriteria(SqlFilterCriteriaBase):
             # ... execute query ...
     """
 
-    def __init__(self, field: str, alias: str, use_json_extract: bool = False):
+    def __init__(
+        self,
+        field: str,
+        alias: str,
+        use_json_extract: bool = False,
+        description: Optional[str] = None,
+        **query_params: Any,
+    ):
         """Initializes the JsonDictTagsCriteria.
 
         Args:
@@ -65,10 +72,23 @@ class JsonDictTagsCriteria(SqlFilterCriteriaBase):
             alias (str): The alias for the query parameter in the API.
             use_json_extract (bool): If True, use the `JSON_EXTRACT` function,
                 which is necessary for SQLite compatibility. Defaults to False.
+            description (Optional[str]): A custom description for the OpenAPI
+                documentation. If None, a default is generated.
+            **query_params: Additional keyword arguments to be passed to FastAPI's Query.
+                (e.g., min_length=3, max_length=50)
         """
         self.field = field
         self.alias = alias
         self.use_json_extract = use_json_extract
+        self.description = description or self._get_default_description()
+        self.query_params = query_params
+
+    def _get_default_description(self) -> str:
+        """Generates a default description for the filter."""
+        return (
+            "Filter by tags. Use 'key' for existence or 'key:value' for a specific value. "
+            "Multiple tags are combined with AND. Example: ?tags=urgent&tags=lang:en"
+        )
 
     @classmethod
     def parse_tags_from_query(
@@ -120,8 +140,8 @@ class JsonDictTagsCriteria(SqlFilterCriteriaBase):
             tags: Optional[List[str]] = Query(
                 default=None,
                 alias=self.alias,
-                description="Filter by tags. Use 'key' for existence or 'key:value' for a specific value. "
-                "Multiple tags are combined with AND. Example: ?tags=urgent&tags=lang:en",
+                description=self.description,
+                **self.query_params,
             )
         ) -> Optional[List[ColumnElement]]:
             """Generates a list of tag-based filter conditions."""

@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Callable, List, Optional
+from typing import Any, Callable, List, Optional
 
 from dateutil.relativedelta import relativedelta
 from fastapi import Query
@@ -94,6 +94,7 @@ class TimeCriteria(SqlFilterCriteriaBase):
         alias: str,
         match_type: TimeMatchType,
         description: Optional[str] = None,
+        **query_params: Any,
     ):
         """Initializes the absolute time filter criterion.
 
@@ -102,11 +103,14 @@ class TimeCriteria(SqlFilterCriteriaBase):
             alias: The alias for the query parameter in the API.
             match_type: The comparison operator to use.
             description: A custom description for the OpenAPI documentation.
+            **query_params: Additional keyword arguments to be passed to FastAPI's Query.
+                (e.g., min_length=3, max_length=50)
         """
         self.field = field
         self.alias = alias
         self.match_type = match_type
         self.description = description or self._get_default_description()
+        self.query_params = query_params
 
     def _get_default_description(self) -> str:
         """Generates a default description based on the filter's configuration."""
@@ -146,6 +150,7 @@ class TimeCriteria(SqlFilterCriteriaBase):
                 default=None,
                 alias=self.alias,
                 description=self.description,
+                **self.query_params,
             )
         ) -> Optional[ColumnElement]:
             """Generates a datetime comparison filter condition.
@@ -190,7 +195,8 @@ class RelativeTimeCriteria(SqlFilterCriteriaBase):
         include_end_bound (bool): If True, use `<=` for the end of the range.
             If False, use `<`. Defaults to True.
         description (Optional[str]): A custom description for OpenAPI.
-
+        **offset_query_params: Additional keyword arguments to be passed to FastAPI's Query.
+            (e.g., min_length=3, max_length=50)
     Examples:
         # In a FastAPI app, filter for posts created in the last 7 days.
 
@@ -217,6 +223,7 @@ class RelativeTimeCriteria(SqlFilterCriteriaBase):
         include_start_bound: bool = True,
         include_end_bound: bool = True,
         description: Optional[str] = None,
+        **query_params: Any,
     ):
         """Initializes the relative time filter criterion.
 
@@ -228,6 +235,16 @@ class RelativeTimeCriteria(SqlFilterCriteriaBase):
             include_start_bound: Whether to include the start of the range.
             include_end_bound: Whether to include the end of the range.
             description: Custom description for the OpenAPI documentation.
+            **query_params: A dictionary to pass additional keyword arguments to the
+                underlying FastAPI `Query` objects for each parameter.
+                The keys should be 'reference', 'unit', or 'offset'.
+
+                Example:
+                {
+                    "offset": {"ge": -30, "le": 0},
+                    "unit": {"default": TimeUnit.WEEK},
+                    "reference": {"deprecated": True}
+                }
         """
         self.field = field
         self.reference_alias = reference_alias or f"{field}_reference"
@@ -236,6 +253,7 @@ class RelativeTimeCriteria(SqlFilterCriteriaBase):
         self.include_start_bound = include_start_bound
         self.include_end_bound = include_end_bound
         self.description = description or self._get_default_description()
+        self.query_params = query_params
 
     def _get_default_description(self) -> str:
         """Generates a default description for the filter."""
@@ -267,16 +285,19 @@ class RelativeTimeCriteria(SqlFilterCriteriaBase):
                 default_factory=datetime.now,
                 alias=self.reference_alias,
                 description=f"Reference date for filtering '{self.field}'. Defaults to current time.",
+                **self.query_params.get("reference", {}),
             ),
             unit: TimeUnit = Query(
                 default=TimeUnit.DAY,
                 alias=self.unit_alias,
                 description="Time unit for the offset.",
+                **self.query_params.get("unit", {}),
             ),
             offset: int = Query(
                 default=-7,
                 alias=self.offset_alias,
                 description="Number of time units to offset from the reference date.",
+                **self.query_params.get("offset", {}),
             ),
         ) -> List[ColumnElement]:
             """Generates relative time filter conditions.

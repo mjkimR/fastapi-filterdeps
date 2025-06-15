@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 from fastapi import Query
 from sqlalchemy.orm import DeclarativeBase
@@ -52,6 +52,7 @@ class BinaryCriteria(SqlFilterCriteriaBase):
             Defaults to `BinaryFilterType.IS_TRUE`.
         description (Optional[str]): A custom description for the OpenAPI documentation.
             A default description is generated if not provided.
+        **query_params: Additional keyword arguments to be passed to FastAPI's Query.
 
     Examples:
         # In a FastAPI application, define filters for a 'Post' model.
@@ -94,6 +95,7 @@ class BinaryCriteria(SqlFilterCriteriaBase):
         alias: Optional[str] = None,
         filter_type: BinaryFilterType = BinaryFilterType.IS_TRUE,
         description: Optional[str] = None,
+        **query_params: Any,
     ):
         """Initializes the binary filter criteria.
 
@@ -105,11 +107,14 @@ class BinaryCriteria(SqlFilterCriteriaBase):
                 Defaults to `BinaryFilterType.IS_TRUE`.
             description (Optional[str]): A custom description for the OpenAPI
                 documentation. A default is generated if not provided.
+            **query_params: Additional keyword arguments to be passed to FastAPI's Query.
+                (e.g., min_length=3, max_length=50)
         """
         self.field = field
         self.alias = alias or f"{field}_{filter_type.value}"
         self.filter_type = filter_type
         self.description = description or self._get_default_description()
+        self.query_params = query_params
 
     def _get_default_description(self) -> str:
         """Generates a default description based on the filter type.
@@ -161,6 +166,7 @@ class BinaryCriteria(SqlFilterCriteriaBase):
                 default=None,
                 alias=self.alias,
                 description=self.description,
+                **self.query_params,
             ),
         ) -> Optional[ColumnElement]:
             """Generates a binary filter condition based on the query parameter.
@@ -183,7 +189,8 @@ class BinaryCriteria(SqlFilterCriteriaBase):
                 return model_field.is_(False) if is_value else model_field.is_(True)
             elif self.filter_type == BinaryFilterType.IS_NONE:
                 return model_field.is_(None) if is_value else model_field.isnot(None)
-            else:  # IS_NOT_NONE
+            elif self.filter_type == BinaryFilterType.IS_NOT_NONE:
                 return model_field.isnot(None) if is_value else model_field.is_(None)
+            return None
 
         return filter_dependency

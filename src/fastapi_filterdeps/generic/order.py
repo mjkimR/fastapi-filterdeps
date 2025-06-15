@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Callable, List, Optional
+from typing import Any, Callable, List, Optional
 
 from fastapi import Query
 from sqlalchemy import func, select, tuple_
@@ -59,6 +59,7 @@ class OrderCriteria(SqlFilterCriteriaBase):
             API. If not provided, it is auto-generated (e.g., "created_at_max").
         description (Optional[str]): A custom description for the OpenAPI
             documentation.
+        **query_params: Additional keyword arguments to be passed to FastAPI's Query.
 
     Examples:
         # In a FastAPI app, find the single latest review for each post.
@@ -95,6 +96,7 @@ class OrderCriteria(SqlFilterCriteriaBase):
         order_type: OrderType = OrderType.MAX,
         alias: Optional[str] = None,
         description: Optional[str] = None,
+        **query_params: Any,
     ):
         """Initializes the order filter criterion.
 
@@ -107,12 +109,15 @@ class OrderCriteria(SqlFilterCriteriaBase):
                 to `OrderType.MAX`.
             alias: The alias for the query parameter. Auto-generated if None.
             description: Custom description for the OpenAPI documentation.
+            **query_params: Additional keyword arguments to be passed to FastAPI's Query.
+                (e.g., min_length=3, max_length=50)
         """
         self.field = field
         self.partition_by = partition_by or []
         self.order_type = order_type
         self.alias = alias or f"{field}_{order_type.value}"
         self.description = description or self._get_default_description()
+        self.query_params = query_params
 
     def _get_default_description(self) -> str:
         """Generates a default description for the filter.
@@ -200,6 +205,7 @@ class OrderCriteria(SqlFilterCriteriaBase):
                 default=True,
                 alias=self.alias,
                 description=self.description,
+                **self.query_params,
             )
         ) -> Optional[ColumnElement]:
             """Generates a filter condition for maximum/minimum values.

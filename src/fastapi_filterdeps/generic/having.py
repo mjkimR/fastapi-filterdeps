@@ -36,6 +36,7 @@ class GroupByHavingCriteria(SqlFilterCriteriaBase):
             returns the SQLAlchemy `HAVING` clause expression.
         description (Optional[str]): A custom description for the OpenAPI
             documentation. A default is generated if not provided.
+        **query_params: Additional keyword arguments to be passed to FastAPI's Query.
 
     Examples:
         # In a FastAPI app, find all Posts where the average score of associated
@@ -71,6 +72,7 @@ class GroupByHavingCriteria(SqlFilterCriteriaBase):
         group_by_cols: List[ColumnElement],
         having_builder: Callable[[Any], ColumnElement],
         description: Optional[str] = None,
+        **query_params: Any,
     ):
         """Initializes the GroupByHaving filter criteria.
 
@@ -81,12 +83,15 @@ class GroupByHavingCriteria(SqlFilterCriteriaBase):
             having_builder (Callable[[Any], ColumnElement]): A function that
                 builds the HAVING clause from the input value.
             description (Optional[str]): Custom description for the OpenAPI docs.
+            **query_params: Additional keyword arguments to be passed to FastAPI's Query.
+                (e.g., min_length=3, max_length=50)
         """
         self.alias = alias
         self.value_type = value_type
         self.group_by_cols = group_by_cols
         self.having_builder = having_builder
         self.description = description or self._get_default_description()
+        self.query_params = query_params
 
     def _get_default_description(self) -> str:
         """Generates a default description for the filter.
@@ -120,6 +125,7 @@ class GroupByHavingCriteria(SqlFilterCriteriaBase):
                 default=None,
                 alias=self.alias,
                 description=self.description,
+                **self.query_params,
             )
         ) -> Optional[ColumnElement]:
             """Generates the aggregate filter condition.

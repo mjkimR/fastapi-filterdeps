@@ -53,6 +53,7 @@ class JsonPathCriteria(SqlFilterCriteriaBase):
         array_type (bool): If True, indicates that the target value at the
             `json_path` is an array, affecting `CONTAINS`, `ARRAY_ANY`, and
             `ARRAY_ALL` operations. Defaults to False.
+        **query_params: Additional keyword arguments to be passed to FastAPI's Query.
 
     Examples:
         # In your FastAPI app, filter a model `BasicModel` with a JSON `detail` field.
@@ -91,6 +92,8 @@ class JsonPathCriteria(SqlFilterCriteriaBase):
         operation: JsonPathOperation,
         use_json_extract: bool = False,
         array_type: bool = False,
+        description: Optional[str] = None,
+        **query_params: Any,
     ):
         """Initializes the JsonPathCriteria.
 
@@ -104,6 +107,10 @@ class JsonPathCriteria(SqlFilterCriteriaBase):
                 which is necessary for SQLite compatibility. Defaults to False.
             array_type (bool): Set to True if the target field is an array to
                 ensure correct operation for array-specific functions.
+            description (Optional[str]): A custom description for the OpenAPI
+                documentation. If None, a default is generated.
+            **query_params: Additional keyword arguments to be passed to FastAPI's Query.
+                (e.g., min_length=3, max_length=50)
         """
         self.field = field
         self.alias = alias
@@ -111,6 +118,14 @@ class JsonPathCriteria(SqlFilterCriteriaBase):
         self.operation = operation
         self.use_json_extract = use_json_extract
         self.array_type = array_type
+        self.description = description or self._get_default_description()
+        self.query_params = query_params
+
+    def _get_default_description(self) -> str:
+        """Generates a default description for the filter."""
+        return (
+            f"Filter on '{'.'.join(self.path)}' using {self.operation.value} operation."
+        )
 
     def build_filter(
         self, orm_model: type[DeclarativeBase]
@@ -138,7 +153,8 @@ class JsonPathCriteria(SqlFilterCriteriaBase):
             value: Optional[Any] = Query(
                 None,
                 alias=self.alias,
-                description=f"Filter on '{'.'.join(self.path)}' using {self.operation.value} operation.",
+                description=self.description,
+                **self.query_params,
             )
         ) -> Optional[ColumnElement]:
             """Generates the JSON path filter condition."""

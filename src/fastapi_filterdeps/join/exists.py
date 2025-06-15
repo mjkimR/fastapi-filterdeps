@@ -1,4 +1,4 @@
-from typing import Optional, Callable
+from typing import Any, Optional, Callable
 
 from fastapi import Query
 from sqlalchemy import select, not_, and_, or_, exists as sql_exists
@@ -35,6 +35,7 @@ class JoinExistsCriteria(SqlFilterCriteriaBase):
             `join_model`.
         description (Optional[str]): A custom description for the OpenAPI
             documentation. A default is generated if not provided.
+        **query_params: Additional keyword arguments to be passed to FastAPI's Query.
 
     Examples:
         # In a FastAPI application, define a filter to find Posts that have
@@ -70,6 +71,7 @@ class JoinExistsCriteria(SqlFilterCriteriaBase):
         join_model: type[DeclarativeBase],
         include_unrelated: bool = False,
         description: Optional[str] = None,
+        **query_params: Any,
     ):
         """Initializes the JoinExistsCriteria.
 
@@ -85,6 +87,8 @@ class JoinExistsCriteria(SqlFilterCriteriaBase):
                 records that do not have any relations. Defaults to False.
             description (Optional[str]): A custom description for the API
                 documentation. If None, a default is generated.
+            **query_params: Additional keyword arguments to be passed to FastAPI's Query.
+                (e.g., min_length=3, max_length=50)
         """
         self.alias = alias
         self.filter_condition = filter_condition
@@ -92,6 +96,7 @@ class JoinExistsCriteria(SqlFilterCriteriaBase):
         self.join_model = join_model
         self.include_unrelated = include_unrelated
         self.description = description or self._get_default_description()
+        self.query_params = query_params
 
     def _get_default_description(self) -> str:
         """Generates a default description for the OpenAPI documentation."""
@@ -116,6 +121,7 @@ class JoinExistsCriteria(SqlFilterCriteriaBase):
                 default=None,
                 alias=self.alias,
                 description=self.description,
+                **self.query_params,
             )
         ) -> Optional[ColumnElement]:
             if exists is None:

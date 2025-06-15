@@ -1,4 +1,4 @@
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 from fastapi import Query
 from sqlalchemy.orm import DeclarativeBase
@@ -27,6 +27,7 @@ class RegexCriteria(SqlFilterCriteriaBase):
             case-insensitive, typically by prepending `(?i)`. Defaults to False.
         description (Optional[str]): A custom description for the OpenAPI
             documentation. A default description is generated if not provided.
+        **query_params: Additional keyword arguments to be passed to FastAPI's Query.
 
     Examples:
         # In a FastAPI app, define a regex filter for a 'Post' model's title.
@@ -61,6 +62,7 @@ class RegexCriteria(SqlFilterCriteriaBase):
         alias: str,
         case_sensitive: bool = False,
         description: Optional[str] = None,
+        **query_params: Any,
     ):
         """Initializes the regular expression filter criterion.
 
@@ -70,11 +72,14 @@ class RegexCriteria(SqlFilterCriteriaBase):
             case_sensitive: Whether the regex match should be case-sensitive.
                 Defaults to False.
             description: Custom description for the OpenAPI documentation.
+            **query_params: Additional keyword arguments to be passed to FastAPI's Query.
+                (e.g., min_length=3, max_length=50)
         """
         self.field = field
         self.alias = alias
         self.case_sensitive = case_sensitive
         self.description = description or self._get_default_description()
+        self.query_params = query_params
 
     def _get_default_description(self) -> str:
         """Generates a default description for the filter.
@@ -109,7 +114,10 @@ class RegexCriteria(SqlFilterCriteriaBase):
 
         def filter_dependency(
             value: Optional[str] = Query(
-                default=None, alias=self.alias, description=self.description
+                default=None,
+                alias=self.alias,
+                description=self.description,
+                **self.query_params,
             )
         ) -> Optional[ColumnElement]:
             """Generates a regex match filter condition.

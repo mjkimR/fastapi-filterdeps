@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Callable, Optional, Type, Union
+from typing import Any, Callable, Optional, Type, Union
 
 from fastapi import Query
 from sqlalchemy import ColumnElement
@@ -55,6 +55,7 @@ class NumericCriteria(SqlFilterCriteriaBase):
         operator (NumericFilterType): The comparison operator to apply.
         description (Optional[str]): A custom description for the OpenAPI
             documentation. A default is generated if not provided.
+        **query_params: Additional keyword arguments to be passed to FastAPI's Query.
 
     Examples:
         # In a FastAPI app, define filters for a 'Post' model with a
@@ -110,6 +111,7 @@ class NumericCriteria(SqlFilterCriteriaBase):
         numeric_type: Type[Union[int, float]],
         operator: NumericFilterType,
         description: Optional[str] = None,
+        **query_params: Any,
     ):
         """Initializes the numeric filter criterion.
 
@@ -119,12 +121,15 @@ class NumericCriteria(SqlFilterCriteriaBase):
             numeric_type: The Python type of the numeric value (e.g., `int`).
             operator: The comparison operator to use.
             description: The description for the filter parameter in OpenAPI.
+            **query_params: Additional keyword arguments to be passed to FastAPI's Query.
+                (e.g., min_length=3, max_length=50)
         """
         self.field = field
         self.alias = alias
         self.numeric_type = numeric_type
         self.operator = operator
         self.description = description or self._get_default_description()
+        self.query_params = query_params
 
     def _get_default_description(self) -> str:
         """Generates a default description based on the filter's operator."""
@@ -174,6 +179,7 @@ class NumericCriteria(SqlFilterCriteriaBase):
                 default=None,
                 alias=self.alias,
                 description=self.description,
+                **self.query_params,
             )
         ) -> Optional[ColumnElement]:
             """Generates a numeric comparison filter condition.

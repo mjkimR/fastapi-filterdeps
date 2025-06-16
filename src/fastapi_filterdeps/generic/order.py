@@ -125,14 +125,12 @@ class OrderCriteria(SqlFilterCriteriaBase):
         Returns:
             The default description for the OpenAPI documentation.
         """
+        order_str = "maximum" if self.order_type == OrderType.MAX else "minimum"
         if not self.partition_by:
-            return f"If true, returns only the single record where '{self.field}' is the global {self.order_type.value}."
+            return f"Filter for the record with the {order_str} value of '{self.field}' globally."
 
-        partition_fields = ", ".join(f"'{p}'" for p in self.partition_by)
-        return (
-            f"If true, returns only the single record where '{self.field}' is the "
-            f"{self.order_type.value} within each {partition_fields} group."
-        )
+        partition_fields = ", ".join(self.partition_by)
+        return f"Filter for records with the {order_str} value of '{self.field}' within each partition of '{partition_fields}'."
 
     def _get_order_by_criteria(
         self, model_field: ColumnElement, orm_model: type[DeclarativeBase]

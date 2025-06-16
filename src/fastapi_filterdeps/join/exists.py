@@ -100,7 +100,10 @@ class JoinExistsCriteria(SqlFilterCriteriaBase):
 
     def _get_default_description(self) -> str:
         """Generates a default description for the OpenAPI documentation."""
-        return "Filter by the existence of related records. Set to `false` to invert."
+        return (
+            f"Filter based on the existence of related '{self.join_model.__name__}' records. "
+            "Pass 'true' to require existence, or 'false' to require non-existence according to the filter logic."
+        )
 
     def build_filter(
         self, orm_model: type[DeclarativeBase]

@@ -87,8 +87,10 @@ class RegexCriteria(SqlFilterCriteriaBase):
         Returns:
             The default description for the OpenAPI documentation.
         """
-        case_info = "(case-sensitive)" if self.case_sensitive else "(case-insensitive)"
-        return f"Filter '{self.field}' by a {case_info} regex pattern."
+        case_info = (
+            " (case-sensitive)" if self.case_sensitive else " (case-insensitive)"
+        )
+        return f"Filter by '{self.field}' using a regular expression{case_info}. Example: '^Item' for prefix matching."
 
     def build_filter(
         self, orm_model: type[DeclarativeBase]

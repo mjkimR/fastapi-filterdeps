@@ -121,7 +121,7 @@ class StringCriteria(SqlFilterCriteriaBase):
             The default description for the OpenAPI documentation.
         """
         case_info = "(case-sensitive)" if self.case_sensitive else "(case-insensitive)"
-        return f"Filter '{self.field}' by a {self.match_type.value} {case_info} match."
+        return f"Filter records where '{self.field}' matches the value using '{self.match_type}' logic{case_info}."
 
     def build_filter(
         self, orm_model: type[DeclarativeBase]
@@ -276,7 +276,7 @@ class StringSetCriteria(SqlFilterCriteriaBase):
             The default description for the OpenAPI documentation.
         """
         verb = "is not in" if self.exclude else "is in"
-        return f"Filter where '{self.field}' {verb} the specified list of values."
+        return f"Filter records where '{self.field}' is {'' if not self.exclude else 'not '}in the provided list of values."
 
     def build_filter(
         self, orm_model: type[DeclarativeBase]

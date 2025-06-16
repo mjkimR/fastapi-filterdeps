@@ -40,9 +40,6 @@ class JoinNestedFilterCriteria(SqlFilterCriteriaBase):
             related items *do not* match the nested filters. Defaults to False.
         include_unrelated (bool): Controls how to treat records with no
             relations at all. Defaults to False.
-        description (Optional[str]): A custom description for the OpenAPI
-            documentation. Currently not used as this filter is activated by
-            its nested criteria.
 
     Examples:
         # In a FastAPI application, define a filter to find Posts based on
@@ -83,7 +80,6 @@ class JoinNestedFilterCriteria(SqlFilterCriteriaBase):
         join_model: type[DeclarativeBase],
         exclude: bool = False,
         include_unrelated: bool = False,
-        description: Optional[str] = None,
     ):
         """Initializes the JoinNestedFilterCriteria.
 
@@ -97,15 +93,12 @@ class JoinNestedFilterCriteria(SqlFilterCriteriaBase):
                 applying a `NOT EXISTS` condition). Defaults to False.
             include_unrelated (bool): If True, the filter logic also includes
                 records that do not have any relations. Defaults to False.
-            description (Optional[str]): A custom description for the API
-                documentation.
         """
         self.filter_criteria = filter_criteria
         self.join_condition = join_condition
         self.join_model = join_model
         self.exclude = exclude
         self.include_unrelated = include_unrelated
-        self.description = description
 
     def build_filter(
         self, orm_model: type[DeclarativeBase]

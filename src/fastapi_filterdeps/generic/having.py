@@ -99,7 +99,8 @@ class GroupByHavingCriteria(SqlFilterCriteriaBase):
         Returns:
             str: The default description for the OpenAPI documentation.
         """
-        return f"Filter by an aggregate condition using parameter '{self.alias}'."
+        group_by_str = ", ".join([str(c.name) for c in self.group_by_cols])
+        return f"Filter records based on an aggregate condition over grouped data. Grouped by: {group_by_str}."
 
     def build_filter(
         self, orm_model: type[DeclarativeBase]

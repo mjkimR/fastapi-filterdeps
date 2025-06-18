@@ -7,7 +7,7 @@ import sqlalchemy
 from sqlalchemy.orm import DeclarativeBase
 
 from fastapi_filterdeps.base import SqlFilterCriteriaBase
-from fastapi_filterdeps.exceptions import ConfigurationError
+from fastapi_filterdeps.exceptions import ConfigurationError, UnsupportedOperationError
 
 
 class JsonPathOperation(str, Enum):
@@ -145,7 +145,7 @@ class JsonPathCriteria(SqlFilterCriteriaBase):
         Raises:
             InvalidFieldError: If the specified `field` does not exist on the `orm_model`.
             InvalidColumnTypeError: If the specified `field` is not a JSON type column.
-            NotImplementedError: If an unsupported operation is used with
+            UnsupportedOperationError: If an unsupported operation is used with
                 `use_json_extract=True`.
             ConfigurationError: If an array-specific operation is used on a field that
                 is not marked as `array_type=True`.
@@ -178,7 +178,7 @@ class JsonPathCriteria(SqlFilterCriteriaBase):
                     return extracted.isnot(None)
                 elif self.operation == JsonPathOperation.CONTAINS:
                     if self.array_type:
-                        raise NotImplementedError(
+                        raise UnsupportedOperationError(
                             "CONTAINS on arrays is not supported when use_json_extract=True."
                         )
                     return extracted.like(f"%{value}%")
@@ -186,7 +186,7 @@ class JsonPathCriteria(SqlFilterCriteriaBase):
                     JsonPathOperation.ARRAY_ANY,
                     JsonPathOperation.ARRAY_ALL,
                 ):
-                    raise NotImplementedError(
+                    raise UnsupportedOperationError(
                         f"{self.operation.value} is not supported when use_json_extract=True."
                     )
             else:

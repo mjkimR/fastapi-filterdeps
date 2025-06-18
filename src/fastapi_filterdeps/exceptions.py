@@ -120,3 +120,9 @@ class InvalidValueError(FilterDependencyError):
     """
 
     pass
+
+
+class UnsupportedOperationError(FilterDependencyError):
+    """Raised when an operation is not supported for the given configuration."""
+
+    pass

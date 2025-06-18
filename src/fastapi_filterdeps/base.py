@@ -6,11 +6,17 @@ from sqlalchemy import Column, ColumnElement
 import sqlalchemy
 from sqlalchemy.orm import DeclarativeBase
 
-from fastapi_filterdeps.exceptions import InvalidFieldError, InvalidValueError
+from fastapi_filterdeps.exceptions import (
+    InvalidFieldError,
+    InvalidRelationError,
+    InvalidColumnTypeError,
+    MissingPrimaryKeyError,
+    InvalidValueError,
+)
 
 if TYPE_CHECKING:
     from fastapi_filterdeps.combinators.invert import InvertCriteria
-    from fastapi_filterdeps.combinators.combine import CombineCriteria
+    from fastapi_filterdeps.combinators.combine import CombineCriteria, CombineOperator
 
 
 class SqlFilterCriteriaBase:
@@ -94,8 +100,55 @@ class SqlFilterCriteriaBase:
             InvalidFieldError: If the field does not exist on the model.
         """
         if not hasattr(orm_model, field):
+            inspector = sqlalchemy.inspect(orm_model)
+            available_fields = [c.name for c in inspector.columns]
             raise InvalidFieldError(
-                f"Field '{field}' does not exist on model '{orm_model.__name__}'"
+                f"Field '{field}' does not exist on model '{orm_model.__name__}'. "
+                f"Available fields are: {', '.join(available_fields)}"
+            )
+
+    def _validate_relation_exists(
+        self, orm_model: type[DeclarativeBase], relation: str
+    ) -> None:
+        """Validates that a relationship exists on the specified ORM model.
+
+        Args:
+            orm_model (type[DeclarativeBase]): The SQLAlchemy ORM model to inspect.
+            relation (str): The name of the relationship to check for existence.
+
+        Raises:
+            InvalidRelationError: If the relationship does not exist on the model.
+        """
+        if not hasattr(orm_model, relation) or not (
+            inspect.isclass(getattr(orm_model, relation))
+            or isinstance(getattr(orm_model, relation), property)
+        ):
+            inspector = sqlalchemy.inspect(orm_model)
+            available_relations = [r.key for r in inspector.relationships]
+            raise InvalidRelationError(
+                f"Relation '{relation}' does not exist on model '{orm_model.__name__}'. "
+                f"Available relations are: {', '.join(available_relations)}"
+            )
+
+    def _validate_column_type(
+        self, orm_model: type[DeclarativeBase], field: str, expected_type: Type[Any]
+    ) -> None:
+        """Validates that a field's column type matches the expected type.
+
+        Args:
+            orm_model (type[DeclarativeBase]): The SQLAlchemy ORM model to inspect.
+            field (str): The name of the field to check.
+            expected_type (Type[Any]): The expected SQLAlchemy column type (e.g., sqlalchemy.JSON).
+
+        Raises:
+            InvalidColumnTypeError: If the field's column type does not match the expected type.
+        """
+        self._validate_field_exists(orm_model, field)
+        column = getattr(orm_model, field).expression
+        if not isinstance(column.type, expected_type):
+            raise InvalidColumnTypeError(
+                f"Field '{field}' on model '{orm_model.__name__}' is of type "
+                f"'{column.type.__class__.__name__}', but '{expected_type.__name__}' was expected."
             )
 
     def _validate_enum_value(
@@ -127,17 +180,19 @@ class SqlFilterCriteriaBase:
             orm_model (type[DeclarativeBase]): The SQLAlchemy ORM model to inspect.
 
         Raises:
-            InvalidFieldError: If the model does not have any primary key columns
+            MissingPrimaryKeyError: If the model does not have any primary key columns
                 defined.
         """
         try:
             pk_columns = self.get_primary_keys(orm_model)
             if not pk_columns:
-                raise InvalidFieldError(
-                    f"Model '{orm_model.__name__}' must have primary key(s)"
+                raise MissingPrimaryKeyError(
+                    f"Model '{orm_model.__name__}' must have primary key(s) for this filter type."
                 )
-        except Exception as e:
-            raise InvalidFieldError(f"Failed to get primary keys: {str(e)}")
+        except InvalidFieldError:
+            raise MissingPrimaryKeyError(
+                f"Failed to get primary keys for model '{orm_model.__name__}'."
+            )
 
     def _get_default_description(self) -> str:
         """Generates a default description for the OpenAPI documentation.
@@ -344,7 +399,7 @@ def create_combined_filter_dependency(
                 else param_object.name
             )
             if alias in used_parameter_aliases:
-                raise ValueError(
+                raise InvalidValueError(  # Changed to InvalidValueError
                     f"Duplicate alias '{alias}' found in filter parameters."
                 )
             used_parameter_aliases.add(alias)

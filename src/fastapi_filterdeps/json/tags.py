@@ -2,6 +2,7 @@ from typing import Any, Optional, List, Dict, Union, Callable
 
 from fastapi import Query
 from sqlalchemy import func, ColumnElement
+import sqlalchemy
 from sqlalchemy.orm import DeclarativeBase
 
 from fastapi_filterdeps.base import SqlFilterCriteriaBase
@@ -133,8 +134,13 @@ class JsonDictTagsCriteria(SqlFilterCriteriaBase):
         Returns:
             Callable: A FastAPI dependency that, when resolved, produces a list
                 of SQLAlchemy filter expressions or `None`.
+
+        Raises:
+            InvalidFieldError: If the specified `field` does not exist on the `orm_model`.
+            InvalidColumnTypeError: If the specified `field` is not a JSON type column.
         """
         self._validate_field_exists(orm_model, self.field)
+        self._validate_column_type(orm_model, self.field, sqlalchemy.JSON)
 
         def filter_dependency(
             tags: Optional[List[str]] = Query(

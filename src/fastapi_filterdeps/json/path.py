@@ -3,6 +3,7 @@ from typing import Any, Optional, List, Callable
 
 from fastapi import Query
 from sqlalchemy import func, ColumnElement
+import sqlalchemy
 from sqlalchemy.orm import DeclarativeBase
 
 from fastapi_filterdeps.base import SqlFilterCriteriaBase
@@ -142,12 +143,14 @@ class JsonPathCriteria(SqlFilterCriteriaBase):
 
         Raises:
             InvalidFieldError: If the specified `field` does not exist on the `orm_model`.
+            InvalidColumnTypeError: If the specified `field` is not a JSON type column.
             NotImplementedError: If an unsupported operation is used with
                 `use_json_extract=True`.
             ValueError: If an array-specific operation is used on a field that
                 is not marked as `array_type=True`.
         """
         self._validate_field_exists(orm_model, self.field)
+        self._validate_column_type(orm_model, self.field, sqlalchemy.JSON)
 
         def filter_dependency(
             value: Optional[Any] = Query(

@@ -4,7 +4,7 @@ from tests.conftest import BaseFilterTest, BasicModel
 
 
 class TestJsonPathCriteria(BaseFilterTest):
-    def test_equals_operation(self, db_type: str):
+    def test_equals_operation(self, json_strategy):
         """Test JSON path equals operation."""
         filter_deps = create_combined_filter_dependency(
             JsonPathCriteria(
@@ -12,7 +12,7 @@ class TestJsonPathCriteria(BaseFilterTest):
                 alias="value",
                 json_path=["settings", "theme"],
                 operation=JsonPathOperation.EQUALS,
-                use_json_extract=db_type == "sqlite",  # Use JSON extract for SQLite
+                strategy=json_strategy,
             ),
             orm_model=BasicModel,
         )
@@ -24,7 +24,7 @@ class TestJsonPathCriteria(BaseFilterTest):
         assert len(data) > 0
         assert all(item["detail"]["settings"]["theme"] == "light" for item in data)
 
-    def test_exists_operation(self, db_type: str):
+    def test_exists_operation(self, json_strategy):
         """Test JSON path exists operation."""
         filter_deps = create_combined_filter_dependency(
             JsonPathCriteria(
@@ -32,7 +32,7 @@ class TestJsonPathCriteria(BaseFilterTest):
                 alias="value",
                 json_path=["settings", "notifications"],
                 operation=JsonPathOperation.EXISTS,
-                use_json_extract=db_type == "sqlite",  # Use JSON extract for SQLite
+                strategy=json_strategy,
             ),
             orm_model=BasicModel,
         )
@@ -44,7 +44,7 @@ class TestJsonPathCriteria(BaseFilterTest):
         assert len(data) > 0
         assert all("notifications" in item["detail"]["settings"] for item in data)
 
-    def test_nested_path_equals(self, db_type: str):
+    def test_nested_path_equals(self, json_strategy):
         """Test filtering on deeply nested JSON path."""
         filter_deps = create_combined_filter_dependency(
             JsonPathCriteria(
@@ -52,7 +52,7 @@ class TestJsonPathCriteria(BaseFilterTest):
                 alias="value",
                 json_path=["settings", "preferences", "language"],
                 operation=JsonPathOperation.EQUALS,
-                use_json_extract=db_type == "sqlite",  # Use JSON extract for SQLite
+                strategy=json_strategy,
             ),
             orm_model=BasicModel,
         )
@@ -67,7 +67,7 @@ class TestJsonPathCriteria(BaseFilterTest):
             for item in data
         )
 
-    def test_number_filter(self, db_type: str):
+    def test_number_filter(self, json_strategy):
         """Test filtering on numeric values."""
         filter_deps = create_combined_filter_dependency(
             JsonPathCriteria(
@@ -75,7 +75,7 @@ class TestJsonPathCriteria(BaseFilterTest):
                 alias="value",
                 json_path=["metadata", "version"],
                 operation=JsonPathOperation.EQUALS,
-                use_json_extract=db_type == "sqlite",  # Use JSON extract for SQLite
+                strategy=json_strategy,
             ),
             orm_model=BasicModel,
         )
@@ -87,7 +87,7 @@ class TestJsonPathCriteria(BaseFilterTest):
         assert len(data) > 0
         assert all(item["detail"]["metadata"]["version"] == "1.0" for item in data)
 
-    def test_invalid_path(self, db_type: str):
+    def test_invalid_path(self, json_strategy):
         """Test behavior with invalid JSON path."""
         filter_deps = create_combined_filter_dependency(
             JsonPathCriteria(
@@ -95,7 +95,7 @@ class TestJsonPathCriteria(BaseFilterTest):
                 alias="value",
                 json_path=["nonexistent", "path"],
                 operation=JsonPathOperation.EQUALS,
-                use_json_extract=db_type == "sqlite",  # Use JSON extract for SQLite
+                strategy=json_strategy,
             ),
             orm_model=BasicModel,
         )
@@ -106,7 +106,7 @@ class TestJsonPathCriteria(BaseFilterTest):
         data = response.json()
         assert len(data) == 0  # No items match the invalid path
 
-    def test_complex_json_path(self, db_type: str):
+    def test_complex_json_path(self, json_strategy):
         """Test complex JSON path with multiple levels."""
         filter_deps = create_combined_filter_dependency(
             JsonPathCriteria(
@@ -114,7 +114,7 @@ class TestJsonPathCriteria(BaseFilterTest):
                 alias="value",
                 json_path=["settings", "preferences", "timezone"],
                 operation=JsonPathOperation.EQUALS,
-                use_json_extract=db_type == "sqlite",  # Use JSON extract for SQLite
+                strategy=json_strategy,
             ),
             orm_model=BasicModel,
         )

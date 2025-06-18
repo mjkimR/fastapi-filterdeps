@@ -2,12 +2,12 @@ from enum import Enum
 from typing import Any, Optional, List, Callable
 
 from fastapi import Query
-from sqlalchemy import func, ColumnElement
+from sqlalchemy import ColumnElement
 import sqlalchemy
 from sqlalchemy.orm import DeclarativeBase
 
 from fastapi_filterdeps.base import SqlFilterCriteriaBase
-from fastapi_filterdeps.exceptions import ConfigurationError, UnsupportedOperationError
+from fastapi_filterdeps.json.strategy import JsonStrategy
 
 
 class JsonPathOperation(str, Enum):
@@ -92,7 +92,7 @@ class JsonPathCriteria(SqlFilterCriteriaBase):
         alias: str,
         json_path: List[str],
         operation: JsonPathOperation,
-        use_json_extract: bool = False,
+        strategy: JsonStrategy,
         array_type: bool = False,
         description: Optional[str] = None,
         **query_params: Any,
@@ -118,7 +118,7 @@ class JsonPathCriteria(SqlFilterCriteriaBase):
         self.alias = alias
         self.path = json_path
         self.operation = operation
-        self.use_json_extract = use_json_extract
+        self.strategy = strategy
         self.array_type = array_type
         self.description = description or self._get_default_description()
         self.query_params = query_params
@@ -165,56 +165,13 @@ class JsonPathCriteria(SqlFilterCriteriaBase):
             if value is None and self.operation != JsonPathOperation.EXISTS:
                 return None
 
-            orm_field = getattr(orm_model, self.field)
-
-            if self.use_json_extract:
-                # SQLite-compatible path using json_extract
-                json_path_str = "$." + ".".join(self.path)
-                extracted = func.json_extract(orm_field, json_path_str)
-
-                if self.operation == JsonPathOperation.EQUALS:
-                    return extracted == str(value)
-                elif self.operation == JsonPathOperation.EXISTS:
-                    return extracted.isnot(None)
-                elif self.operation == JsonPathOperation.CONTAINS:
-                    if self.array_type:
-                        raise UnsupportedOperationError(
-                            "CONTAINS on arrays is not supported when use_json_extract=True."
-                        )
-                    return extracted.like(f"%{value}%")
-                elif self.operation in (
-                    JsonPathOperation.ARRAY_ANY,
-                    JsonPathOperation.ARRAY_ALL,
-                ):
-                    raise UnsupportedOperationError(
-                        f"{self.operation.value} is not supported when use_json_extract=True."
-                    )
-            else:
-                # Standard path traversal for PostgreSQL, MySQL
-                target = orm_field
-                for path_part in self.path:
-                    target = target[path_part]
-
-                if self.operation == JsonPathOperation.EQUALS:
-                    return target.as_string() == str(value)
-                elif self.operation == JsonPathOperation.EXISTS:
-                    return target.isnot(None)
-                elif self.operation == JsonPathOperation.CONTAINS:
-                    # For arrays, `contains` expects a list of items to find.
-                    return target.contains([value] if self.array_type else value)
-                elif self.operation == JsonPathOperation.ARRAY_ANY:
-                    if not self.array_type:
-                        raise ConfigurationError(
-                            "ARRAY_ANY is only valid for array types."
-                        )
-                    return target.any_(value)
-                elif self.operation == JsonPathOperation.ARRAY_ALL:
-                    if not self.array_type:
-                        raise ConfigurationError(
-                            "ARRAY_ALL is only valid for array types."
-                        )
-                    return target.all_(value)
-
-            return None
+            model_field = getattr(orm_model, self.field)
+            return self.strategy.build_path_expression(
+                field=model_field,
+                path=self.path,
+                operation=self.operation.value,
+                value=value,
+                array_type=self.array_type,
+            )
 
         return filter_dependency

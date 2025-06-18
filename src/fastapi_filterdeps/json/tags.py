@@ -6,6 +6,7 @@ import sqlalchemy
 from sqlalchemy.orm import DeclarativeBase
 
 from fastapi_filterdeps.base import SqlFilterCriteriaBase
+from fastapi_filterdeps.json.strategy import JsonStrategy
 
 
 class JsonDictTagsCriteria(SqlFilterCriteriaBase):
@@ -62,7 +63,7 @@ class JsonDictTagsCriteria(SqlFilterCriteriaBase):
         self,
         field: str,
         alias: str,
-        use_json_extract: bool = False,
+        strategy: JsonStrategy,
         description: Optional[str] = None,
         **query_params: Any,
     ):
@@ -80,7 +81,7 @@ class JsonDictTagsCriteria(SqlFilterCriteriaBase):
         """
         self.field = field
         self.alias = alias
-        self.use_json_extract = use_json_extract
+        self.strategy = strategy
         self.description = description or self._get_default_description()
         self.query_params = query_params
 
@@ -156,29 +157,14 @@ class JsonDictTagsCriteria(SqlFilterCriteriaBase):
 
             filters = []
             tags_dict = self.parse_tags_from_query(tags)
-            orm_field = getattr(orm_model, self.field)
+            model_field = getattr(orm_model, self.field)
 
             for key, value in tags_dict.items():
-                if self.use_json_extract:
-                    # SQLite JSON1 style
-                    json_path = f"$.tags.{key}"
-                    extracted = func.json_extract(orm_field, json_path)
-                    if isinstance(value, bool):
-                        # Existence check
-                        filters.append(extracted.isnot(None))
-                    else:
-                        # Value match
-                        filters.append(extracted == value)
-                else:
-                    # PostgreSQL/MySQL JSONB style
-                    target_tag = orm_field["tags"][key]
-                    if isinstance(value, bool):
-                        # Existence check
-                        filters.append(target_tag.isnot(None))
-                    else:
-                        # Value match, casting the JSONB value to text for comparison
-                        filters.append(target_tag.as_string() == value)
+                expression = self.strategy.build_tag_expression(
+                    field=model_field, key=key, value=value
+                )
+                filters.append(expression)
 
-            return filters if filters else None
+            return filters
 
         return filter_dependency

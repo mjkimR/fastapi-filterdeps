@@ -4,13 +4,13 @@ from tests.conftest import BaseFilterTest, BasicModel
 
 
 class TestJsonDictTagsCriteria(BaseFilterTest):
-    def test_filter_by_boolean_tag(self, db_type: str):
+    def test_filter_by_boolean_tag(self, json_strategy):
         """Test filtering by boolean tag existence."""
         filter_deps = create_combined_filter_dependency(
             JsonDictTagsCriteria(
                 field="detail",  # Use the JSON field name
                 alias="tags",
-                use_json_extract=db_type == "sqlite",  # Use JSON extract for SQLite
+                strategy=json_strategy,
             ),
             orm_model=BasicModel,
         )
@@ -23,13 +23,13 @@ class TestJsonDictTagsCriteria(BaseFilterTest):
         assert len(data) > 0
         assert all("urgent" in item["detail"]["tags"] for item in data)
 
-    def test_filter_by_value_tag(self, db_type: str):
+    def test_filter_by_value_tag(self, json_strategy):
         """Test filtering by tag with specific value."""
         filter_deps = create_combined_filter_dependency(
             JsonDictTagsCriteria(
                 field="detail",  # Use the JSON field name
                 alias="tags",
-                use_json_extract=db_type == "sqlite",  # Use JSON extract for SQLite
+                strategy=json_strategy,
             ),
             orm_model=BasicModel,
         )
@@ -42,13 +42,13 @@ class TestJsonDictTagsCriteria(BaseFilterTest):
         assert len(data) > 0
         assert all(item["detail"]["tags"]["language"] == "en" for item in data)
 
-    def test_filter_by_multiple_tags(self, db_type: str):
+    def test_filter_by_multiple_tags(self, json_strategy):
         """Test filtering by multiple tags combination."""
         filter_deps = create_combined_filter_dependency(
             JsonDictTagsCriteria(
                 field="detail",  # Use the JSON field name
                 alias="tags",
-                use_json_extract=db_type == "sqlite",  # Use JSON extract for SQLite
+                strategy=json_strategy,
             ),
             orm_model=BasicModel,
         )

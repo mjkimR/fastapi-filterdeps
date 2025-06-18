@@ -17,6 +17,12 @@ logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 
 sys.path.append(str(Path(__file__).parent.parent / "src"))
 
+from fastapi_filterdeps.json.strategy import (
+    JsonExtractStrategy,
+    JsonOperatorStrategy,
+    JsonStrategy,
+)
+
 
 def pytest_addoption(parser):
     """'--db-type' command line option to select DB type."""
@@ -50,6 +56,20 @@ def db_session(request, db_type):
     """
     session_fixture = request.getfixturevalue(f"{db_type}_session")
     yield session_fixture
+
+
+@pytest.fixture(scope="function")
+def json_strategy(db_session) -> JsonStrategy:
+    """
+    Provides the appropriate JSON strategy by introspecting the active db_session.
+    """
+    dialect = db_session.bind.dialect.name
+    if dialect == "postgresql":
+        return JsonOperatorStrategy()
+    elif dialect == "sqlite":
+        return JsonExtractStrategy()
+    else:
+        raise NotImplementedError(f"No JSON strategy for dialect: {dialect}")
 
 
 @pytest.fixture(scope="function")

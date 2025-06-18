@@ -7,6 +7,7 @@ import sqlalchemy
 from sqlalchemy.orm import DeclarativeBase
 
 from fastapi_filterdeps.exceptions import (
+    ConfigurationError,
     InvalidFieldError,
     InvalidRelationError,
     InvalidColumnTypeError,
@@ -323,7 +324,7 @@ def create_combined_filter_dependency(
         using the `*` splat operator.
 
     Raises:
-        ValueError: If two or more filter criteria are configured with the
+        ConfigurationError: If two or more filter criteria are configured with the
             same query parameter alias.
 
     Examples:
@@ -390,7 +391,9 @@ def create_combined_filter_dependency(
             unique_param_name = f"{filter_option.__class__.__name__.lower()}_{param_name}_{unique_param_id_counter}"
             unique_param_id_counter += 1
             if unique_param_name in param_definitions:
-                raise ValueError(f"Duplicate parameter name '{param_name}' found.")
+                raise ConfigurationError(
+                    f"Duplicate parameter name '{param_name}' found."
+                )
 
             # Check for duplicate aliases.
             alias = (
@@ -399,7 +402,7 @@ def create_combined_filter_dependency(
                 else param_object.name
             )
             if alias in used_parameter_aliases:
-                raise InvalidValueError(  # Changed to InvalidValueError
+                raise InvalidValueError(
                     f"Duplicate alias '{alias}' found in filter parameters."
                 )
             used_parameter_aliases.add(alias)

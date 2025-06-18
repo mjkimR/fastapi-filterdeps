@@ -7,6 +7,7 @@ import sqlalchemy
 from sqlalchemy.orm import DeclarativeBase
 
 from fastapi_filterdeps.base import SqlFilterCriteriaBase
+from fastapi_filterdeps.exceptions import ConfigurationError
 
 
 class JsonPathOperation(str, Enum):
@@ -146,7 +147,7 @@ class JsonPathCriteria(SqlFilterCriteriaBase):
             InvalidColumnTypeError: If the specified `field` is not a JSON type column.
             NotImplementedError: If an unsupported operation is used with
                 `use_json_extract=True`.
-            ValueError: If an array-specific operation is used on a field that
+            ConfigurationError: If an array-specific operation is used on a field that
                 is not marked as `array_type=True`.
         """
         self._validate_field_exists(orm_model, self.field)
@@ -203,11 +204,15 @@ class JsonPathCriteria(SqlFilterCriteriaBase):
                     return target.contains([value] if self.array_type else value)
                 elif self.operation == JsonPathOperation.ARRAY_ANY:
                     if not self.array_type:
-                        raise ValueError("ARRAY_ANY is only valid for array types.")
+                        raise ConfigurationError(
+                            "ARRAY_ANY is only valid for array types."
+                        )
                     return target.any_(value)
                 elif self.operation == JsonPathOperation.ARRAY_ALL:
                     if not self.array_type:
-                        raise ValueError("ARRAY_ALL is only valid for array types.")
+                        raise ConfigurationError(
+                            "ARRAY_ALL is only valid for array types."
+                        )
                     return target.all_(value)
 
             return None

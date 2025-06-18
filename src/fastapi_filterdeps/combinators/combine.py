@@ -9,6 +9,7 @@ from fastapi_filterdeps.base import (
     SqlFilterCriteriaBase,
     create_combined_filter_dependency,
 )
+from fastapi_filterdeps.exceptions import ConfigurationError
 
 
 class CombineOperator(str, Enum):
@@ -89,9 +90,12 @@ class CombineCriteria(SqlFilterCriteriaBase):
                 use for combining the criteria.
             *criteria (SqlFilterCriteriaBase): A sequence of two or more filter
                 criteria instances to combine.
+
+        Raises:
+            ConfigurationError: If the criteria list is less than 2.
         """
         if len(criteria) < 2:
-            raise ValueError("CombineCriteria requires at least two criteria.")
+            raise ConfigurationError("CombineCriteria requires at least two criteria.")
         self.operator = operator
         self.criteria_list = list(criteria)
 

@@ -1,7 +1,7 @@
 from typing import Any, Optional, List, Dict, Union, Callable
 
 from fastapi import Query
-from sqlalchemy import func, ColumnElement
+from sqlalchemy import ColumnElement
 import sqlalchemy
 from sqlalchemy.orm import DeclarativeBase
 
@@ -13,46 +13,48 @@ class JsonDictTagsCriteria(SqlFilterCriteriaBase):
     """A specialized filter for querying key-value tags within a JSON column.
 
     This filter is designed for a common use case where a JSON field contains a
-    dictionary of tags. It allows filtering by tag existence or by a specific
-    tag-value pair. The query parameter accepts multiple tags, which are
-    combined with an AND operator.
+    dictionary, often under a specific key like "tags". It allows filtering by
+    tag existence or by a specific tag-value pair. The query parameter accepts
+    multiple tags, which are combined with a logical AND.
 
-    It supports two tag formats in query parameters:
+    The SQL generation is delegated to a `JsonStrategy`, making this filter
+    compatible with various database backends.
+
+    Query parameters are parsed in two formats:
     1.  `key`: Checks for the existence of the tag key (e.g., `?tags=urgent`).
-    2.  `key:value`: Checks if the tag key matches the specified value (e.g.,
-        `?tags=priority:high`).
-
-    The filter is compatible with both PostgreSQL/MySQL (using JSON operators)
-    and SQLite (using the `JSON_EXTRACT` function).
+    2.  `key:value`: Checks if the tag key's value matches the specified value
+        (e.g., `?tags=priority:high`).
 
     Attributes:
         field (str): The name of the SQLAlchemy model's JSON column that
             contains the tags dictionary.
         alias (str): The alias for the query parameter in the API endpoint.
-        use_json_extract (bool): If True, uses `func.json_extract` for filtering,
-            which is required for SQLite. Defaults to False.
+        strategy (JsonStrategy): The database-specific strategy for building the
+            SQL filter expression.
+        description (Optional[str]): A custom description for the OpenAPI documentation.
         **query_params: Additional keyword arguments to be passed to FastAPI's Query.
+
     Examples:
         # Given a model `BasicModel` with a JSON `detail` field structured as:
         # `{"tags": {"urgent": True, "language": "en", "priority": "high"}}`
 
         from fastapi_filterdeps.base import create_combined_filter_dependency
+        from fastapi_filterdeps.json.strategy import JsonOperatorStrategy
         from your_models import BasicModel
 
         item_filters = create_combined_filter_dependency(
-            # This will expose a `?tags=` query parameter.
-            # For SQLite, set use_json_extract=True.
+            # This exposes a `?tags=` query parameter.
             JsonDictTagsCriteria(
                 field="detail",
                 alias="tags",
-                use_json_extract=False
+                strategy=JsonOperatorStrategy(), # Choose the appropriate strategy
             ),
             orm_model=BasicModel,
         )
 
         # In your endpoint:
         # A request to `/items?tags=urgent&tags=language:en` will find items
-        # that have both the "urgent" tag AND the "language:en" tag.
+        # that have BOTH the "urgent" tag AND the "language:en" tag.
         @app.get("/items")
         def list_items(filters=Depends(item_filters)):
             query = select(BasicModel).where(*filters)
@@ -72,12 +74,11 @@ class JsonDictTagsCriteria(SqlFilterCriteriaBase):
         Args:
             field (str): The name of the JSON field in the SQLAlchemy model.
             alias (str): The alias for the query parameter in the API.
-            use_json_extract (bool): If True, use the `JSON_EXTRACT` function,
-                which is necessary for SQLite compatibility. Defaults to False.
+            strategy (JsonStrategy): The database-specific strategy instance for
+                building the filter expression.
             description (Optional[str]): A custom description for the OpenAPI
                 documentation. If None, a default is generated.
             **query_params: Additional keyword arguments to be passed to FastAPI's Query.
-                (e.g., min_length=3, max_length=50)
         """
         self.field = field
         self.alias = alias
@@ -107,7 +108,7 @@ class JsonDictTagsCriteria(SqlFilterCriteriaBase):
 
         Returns:
             Dict[str, Union[str, bool]]: A dictionary mapping each tag key to
-                its value, or to `True` if it's an existence check.
+                its value, or to `True` if it's an existence-only check.
 
         Examples:
             >>> query = ["priority:high", "urgent"]
@@ -134,7 +135,7 @@ class JsonDictTagsCriteria(SqlFilterCriteriaBase):
 
         Returns:
             Callable: A FastAPI dependency that, when resolved, produces a list
-                of SQLAlchemy filter expressions or `None`.
+                of SQLAlchemy filter expressions (one for each tag) or `None`.
 
         Raises:
             InvalidFieldError: If the specified `field` does not exist on the `orm_model`.

@@ -13,12 +13,17 @@ from fastapi_filterdeps.json.strategy import JsonStrategy
 class JsonPathOperation(str, Enum):
     """Specifies the available operations for JSON field filtering.
 
+    These operations define how a value at a given JSON path is compared.
+
     Attributes:
-        EQUALS: Direct value comparison at the specified path.
-        CONTAINS: Checks if a value is contained within a JSON object or array.
-        EXISTS: Checks if the specified path exists and is not null.
-        ARRAY_ANY: Checks if any element in a JSON array matches the value.
-        ARRAY_ALL: Checks if all elements in a JSON array match the value.
+        EQUALS: Direct value comparison at the specified path (`==`).
+        CONTAINS: Checks if a value is contained within a JSON object or array (`@>`).
+            This operation is primarily supported by `JsonOperatorStrategy`.
+        EXISTS: Checks if the specified path exists and its value is not JSON `null`.
+        ARRAY_ANY: Checks if any element in a JSON array matches the value (`?|`).
+            Requires `array_type=True` and is supported by `JsonOperatorStrategy`.
+        ARRAY_ALL: Checks if all elements in a JSON array match the value (`?&`).
+            Requires `array_type=True` and is supported by `JsonOperatorStrategy`.
     """
 
     EQUALS = "eq"
@@ -34,15 +39,15 @@ class JsonPathOperation(str, Enum):
 
 
 class JsonPathCriteria(SqlFilterCriteriaBase):
-    """A filter for querying specific paths within a JSON database column.
+    """A filter for querying specific paths within a JSON/JSONB database column.
 
     This criteria allows for filtering records based on the value at a nested
-    path within a JSON or JSONB column. It supports multiple operations like
-    equality, containment, and existence checks.
+    path within a JSON column. It supports multiple operations like equality,
+    containment, and existence checks.
 
-    It can operate in two modes depending on the database backend:
-    - Standard Mode (for PostgreSQL/MySQL): Uses native JSON operators.
-    - `json_extract` Mode (for SQLite): Uses the `JSON_EXTRACT` function.
+    The actual SQL generation is delegated to a `JsonStrategy` object, allowing
+    this criteria to be compatible with different database backends (e.g.,
+    PostgreSQL with `JsonOperatorStrategy` or SQLite with `JsonExtractStrategy`).
 
     Attributes:
         field (str): The name of the SQLAlchemy model's JSON column to filter on.
@@ -50,29 +55,31 @@ class JsonPathCriteria(SqlFilterCriteriaBase):
         json_path (List[str]): An ordered list of keys representing the path to
             the target value within the JSON object (e.g., `['settings', 'theme']`).
         operation (JsonPathOperation): The comparison operation to perform.
-        use_json_extract (bool): If True, uses `func.json_extract` for filtering,
-            which is required for SQLite. Defaults to False.
+        strategy (JsonStrategy): The database-specific strategy for building the
+            SQL filter expression.
         array_type (bool): If True, indicates that the target value at the
-            `json_path` is an array, affecting `CONTAINS`, `ARRAY_ANY`, and
-            `ARRAY_ALL` operations. Defaults to False.
-        **query_params: Additional keyword arguments to be passed to FastAPI's Query.
+            `json_path` is an array. This is required for `CONTAINS`,
+            `ARRAY_ANY`, and `ARRAY_ALL` operations to function correctly.
+            Defaults to False.
+        description (Optional[str]): A custom description for the OpenAPI documentation.
+        **query_params: Additional keyword arguments to pass to FastAPI's Query.
 
     Examples:
-        # In your FastAPI app, filter a model `BasicModel` with a JSON `detail` field.
+        # In your FastAPI app, filter a `BasicModel` with a JSON `detail` field.
         # The JSON could look like: `{"settings": {"theme": "dark"}}`
 
         from fastapi_filterdeps.base import create_combined_filter_dependency
+        from fastapi_filterdeps.json.strategy import JsonOperatorStrategy
         from your_models import BasicModel
 
         item_filters = create_combined_filter_dependency(
             # Create a filter that exposes a `?theme=` query parameter.
-            # This is for PostgreSQL or MySQL. For SQLite, set use_json_extract=True.
             JsonPathCriteria(
                 field="detail",
                 alias="theme",
                 json_path=["settings", "theme"],
                 operation=JsonPathOperation.EQUALS,
-                use_json_extract=False
+                strategy=JsonOperatorStrategy(), # Choose the appropriate strategy
             ),
             orm_model=BasicModel,
         )
@@ -105,14 +112,13 @@ class JsonPathCriteria(SqlFilterCriteriaBase):
             json_path (List[str]): The list of keys defining the path to the
                 target value (e.g., `["settings", "theme"]`).
             operation (JsonPathOperation): The type of comparison to perform.
-            use_json_extract (bool): If True, use the `JSON_EXTRACT` function,
-                which is necessary for SQLite compatibility. Defaults to False.
-            array_type (bool): Set to True if the target field is an array to
-                ensure correct operation for array-specific functions.
+            strategy (JsonStrategy): The database-specific strategy instance for
+                building the filter expression.
+            array_type (bool): Set to True if the target at the path is an array.
+                This affects array-specific operations. Defaults to False.
             description (Optional[str]): A custom description for the OpenAPI
                 documentation. If None, a default is generated.
-            **query_params: Additional keyword arguments to be passed to FastAPI's Query.
-                (e.g., min_length=3, max_length=50)
+            **query_params: Additional keyword arguments to pass to FastAPI's Query.
         """
         self.field = field
         self.alias = alias
@@ -125,14 +131,18 @@ class JsonPathCriteria(SqlFilterCriteriaBase):
 
     def _get_default_description(self) -> str:
         """Generates a default description for the filter."""
-        return (
-            f"Filter on '{'.'.join(self.path)}' using {self.operation.value} operation."
-        )
+        path_str = ".".join(self.path)
+        return f"Filter on JSON path '{path_str}' using the '{self.operation.value}' operation."
 
     def build_filter(
         self, orm_model: type[DeclarativeBase]
     ) -> Callable[..., Optional[ColumnElement]]:
         """Builds a FastAPI dependency for filtering by a JSON path.
+
+        This method validates the model and configuration, then returns a
+        dependency function. When called by FastAPI, this function will use the
+        provided `strategy` to construct the appropriate SQLAlchemy filter
+        expression based on the user's query parameters.
 
         Args:
             orm_model (type[DeclarativeBase]): The SQLAlchemy model class that
@@ -145,10 +155,10 @@ class JsonPathCriteria(SqlFilterCriteriaBase):
         Raises:
             InvalidFieldError: If the specified `field` does not exist on the `orm_model`.
             InvalidColumnTypeError: If the specified `field` is not a JSON type column.
-            UnsupportedOperationError: If an unsupported operation is used with
-                `use_json_extract=True`.
-            ConfigurationError: If an array-specific operation is used on a field that
-                is not marked as `array_type=True`.
+            UnsupportedOperationError: If the chosen strategy does not support the
+                requested operation.
+            ConfigurationError: If an array-specific operation is used on a field
+                not marked as `array_type=True`.
         """
         self._validate_field_exists(orm_model, self.field)
         self._validate_column_type(orm_model, self.field, sqlalchemy.JSON)
@@ -162,6 +172,8 @@ class JsonPathCriteria(SqlFilterCriteriaBase):
             )
         ) -> Optional[ColumnElement]:
             """Generates the JSON path filter condition."""
+            # For EXISTS operation, the value is implicit (we just check for presence).
+            # For all other operations, a value must be provided.
             if value is None and self.operation != JsonPathOperation.EXISTS:
                 return None
 

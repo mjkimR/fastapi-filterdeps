@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 
 from fastapi_filterdeps.base import create_combined_filter_dependency
+from fastapi_filterdeps.filtersets import FilterSet
 from fastapi_filterdeps.generic.binary import BinaryCriteria, BinaryFilterType
 from fastapi_filterdeps.generic.time import TimeCriteria, TimeMatchType
 from fastapi_filterdeps.generic.enum import EnumCriteria, MultiEnumCriteria
@@ -45,90 +46,89 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Blog API Example", lifespan=lifespan)
 
 
-# Create filter dependencies
-post_filters = create_combined_filter_dependency(
+class PostFilterSet(FilterSet):
+    class Meta:
+        orm_model = Post
+
     # Binary: is_published
-    BinaryCriteria(
+    is_published = BinaryCriteria(
         field="is_published",
         alias="published",
         filter_type=BinaryFilterType.IS_TRUE,
-    ),
+    )
     # Enum: status
-    EnumCriteria(
+    status = EnumCriteria(
         field="status",
         alias="status",
         enum_class=PostStatus,
-    ),
+    )
     # MultiEnum: status (multi)
-    MultiEnumCriteria(
+    statuses = MultiEnumCriteria(
         field="status",
         alias="statuses",
         enum_class=PostStatus,
-    ),
+    )
     # Numeric range: view_count
-    NumericCriteria(
+    min_views = NumericCriteria(
         field="view_count",
         alias="min_views",
         operator=NumericFilterType.GTE,
         numeric_type=int,
-    ),
-    NumericCriteria(
+    )
+    max_views = NumericCriteria(
         field="view_count",
         alias="max_views",
         operator=NumericFilterType.LTE,
         numeric_type=int,
-    ),
+    )
     # Numeric exact: view_count
-    NumericCriteria(
+    views = NumericCriteria(
         field="view_count",
         alias="views",
         numeric_type=int,
-        operator=NumericFilterType.EQ,
-    ),
+    )
     # String: title contains
-    StringCriteria(
+    title_contains = StringCriteria(
         field="title",
         alias="title",
         match_type=StringMatchType.CONTAINS,
-    ),
+    )
     # String set: title in set
-    StringSetCriteria(
+    title_in_set = StringSetCriteria(
         field="title",
         alias="titles",
-    ),
+    )
     # Regex: title pattern
-    RegexCriteria(
+    title_pattern = RegexCriteria(
         field="title",
         alias="title_pattern",
         case_sensitive=False,
-    ),
+    )
     # Time range: created_at
-    TimeCriteria(
+    created_at_start = TimeCriteria(
         field="created_at",
         alias="created_at_start",
         match_type=TimeMatchType.GTE,
-    ),
-    TimeCriteria(
+    )
+    created_at_end = TimeCriteria(
         field="created_at",
         alias="created_at_end",
         match_type=TimeMatchType.LTE,
-    ),
+    )
     # JoinExists: has approved comments
-    JoinExistsCriteria(
+    has_approved_comments = JoinExistsCriteria(
         filter_condition=[Comment.is_approved == True],
         join_condition=Post.id == Comment.post_id,
         alias="has_approved_comments",
         join_model=Comment,
-    ),
+    )
     # GroupByHaving: average vote score >= x
-    GroupByHavingCriteria(
+    avg_vote_score = GroupByHavingCriteria(
         alias="avg_vote_score",
         value_type=float,
         group_by_cols=[Post.id],
         having_builder=lambda x: func.avg(Vote.score) >= x,
-    ),
-    orm_model=Post,
-)
+    )
 
 
 # User filters example
@@ -197,7 +197,7 @@ async def redirect_to_docs():
 @app.get("/posts", response_model=List[PostRead])
 async def list_posts(
     db: Session = Depends(get_db),
-    filters=Depends(post_filters),
+    filters=Depends(PostFilterSet.as_dependency()),
     order_by=Depends(
         order_by_params(Post, whitelist=["created_at", "view_count", "id"])
     ),

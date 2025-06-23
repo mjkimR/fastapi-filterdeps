@@ -2,7 +2,7 @@ from enum import Enum
 
 import pytest
 from fastapi_filterdeps.base import create_combined_filter_dependency
-from fastapi_filterdeps.generic.enum import (
+from fastapi_filterdeps.simple.enum import (
     EnumCriteria,
     MultiEnumCriteria,
 )

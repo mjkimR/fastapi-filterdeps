@@ -1,13 +1,10 @@
-from typing import Any, Callable, Optional
-
-from fastapi import Query
-from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.sql.expression import ColumnElement
-
-from fastapi_filterdeps.base import SqlFilterCriteriaBase
+from typing import Any, Optional
 
 
-class RegexCriteria(SqlFilterCriteriaBase):
+from fastapi_filterdeps.base import SimpleFilterCriteriaBase
+
+
+class RegexCriteria(SimpleFilterCriteriaBase):
     """A filter for matching a field against a regular expression.
 
     This class provides a generic way to filter text fields using regular
@@ -75,11 +72,8 @@ class RegexCriteria(SqlFilterCriteriaBase):
             **query_params: Additional keyword arguments to be passed to FastAPI's Query.
                 (e.g., min_length=3, max_length=50)
         """
-        self.field = field
-        self.alias = alias
+        super().__init__(field, alias, description, str, **query_params)
         self.case_sensitive = case_sensitive
-        self.description = description or self._get_default_description()
-        self.query_params = query_params
 
     def _get_default_description(self) -> str:
         """Generates a default description for the filter.
@@ -92,49 +86,7 @@ class RegexCriteria(SqlFilterCriteriaBase):
         )
         return f"Filter by '{self.field}' using a regular expression{case_info}. Example: '^Item' for prefix matching."
 
-    def build_filter(
-        self, orm_model: type[DeclarativeBase]
-    ) -> Callable[..., Optional[ColumnElement]]:
-        """Builds a FastAPI dependency for regular expression filtering.
-
-        This method creates a callable FastAPI dependency that produces a
-        SQLAlchemy `regexp_match` filter condition.
-
-        Args:
-            orm_model: The SQLAlchemy model class to apply the filter to.
-
-        Returns:
-            A FastAPI dependency that returns a SQLAlchemy filter
-            condition (`ColumnElement`) or `None`.
-
-        Raises:
-            InvalidFieldError: If the specified `field` does not exist on the
-                `orm_model`.
-        """
-        self._validate_field_exists(orm_model, self.field)
+    def _filter_logic(self, orm_model, value):
         model_field = getattr(orm_model, self.field)
-
-        def filter_dependency(
-            value: Optional[str] = Query(
-                default=None,
-                alias=self.alias,
-                description=self.description,
-                **self.query_params,
-            )
-        ) -> Optional[ColumnElement]:
-            """Generates a regex match filter condition.
-
-            Args:
-                value: The regex pattern string from the query parameter. If
-                    None, no filter is applied.
-
-            Returns:
-                A SQLAlchemy filter expression, or `None` if no pattern
-                was provided.
-            """
-            if value is None:
-                return None
-            pattern = value if self.case_sensitive else f"(?i){value}"
-            return model_field.regexp_match(pattern)
-
-        return filter_dependency
+        pattern = value if self.case_sensitive else f"(?i){value}"
+        return model_field.regexp_match(pattern)

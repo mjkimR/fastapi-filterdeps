@@ -1,6 +1,6 @@
 from sqlalchemy import func
 from fastapi_filterdeps.base import create_combined_filter_dependency
-from fastapi_filterdeps.generic.having import GroupByHavingCriteria
+from fastapi_filterdeps.complex.having import GroupByHavingCriteria
 from tests.conftest import BaseFilterTest
 from tests.models import BasicModel
 

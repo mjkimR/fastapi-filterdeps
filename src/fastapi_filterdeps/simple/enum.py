@@ -1,14 +1,11 @@
 from enum import Enum
-from typing import Any, Callable, List, Optional, Type
-
-from fastapi import Query
-from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.sql.expression import ColumnElement
-
-from fastapi_filterdeps.base import SqlFilterCriteriaBase
+from typing import Any, Optional, Type
 
 
-class EnumCriteria(SqlFilterCriteriaBase):
+from fastapi_filterdeps.base import SimpleFilterCriteriaBase
+
+
+class EnumCriteria(SimpleFilterCriteriaBase):
     """A filter for an exact match on an Enum field.
 
     This class provides a generic implementation for filtering fields that use
@@ -55,8 +52,8 @@ class EnumCriteria(SqlFilterCriteriaBase):
     def __init__(
         self,
         field: str,
-        alias: str,
         enum_class: Type[Enum],
+        alias: Optional[str] = None,
         description: Optional[str] = None,
         **query_params: Any,
     ):
@@ -71,11 +68,8 @@ class EnumCriteria(SqlFilterCriteriaBase):
             **query_params: Additional keyword arguments to be passed to FastAPI's Query.
                 (e.g., min_length=3, max_length=50)
         """
-        self.field = field
-        self.alias = alias
+        super().__init__(field, alias, description, enum_class, **query_params)
         self.enum_class = enum_class
-        self.description = description or self._get_default_description()
-        self.query_params = query_params
 
     def _get_default_description(self) -> str:
         """Generates a default description for the filter.
@@ -83,58 +77,15 @@ class EnumCriteria(SqlFilterCriteriaBase):
         Returns:
             str: The default description, including available enum values.
         """
-        enum_values = ", ".join([f"`{v.value}`" for v in self.enum_class])
+        enum_values = ", ".join([f"`{v.value}`" for v in self.bound_type])
         return f"Filter by '{self.field}' on one of: {enum_values}."
 
-    def build_filter(
-        self, orm_model: type[DeclarativeBase]
-    ) -> Callable[..., Optional[ColumnElement]]:
-        """Builds a FastAPI dependency for single-enum filtering.
-
-        This method creates a callable FastAPI dependency that produces an
-        SQLAlchemy equality filter condition.
-
-        Args:
-            orm_model (type[DeclarativeBase]): The SQLAlchemy model class to which
-                the filter will be applied.
-
-        Returns:
-            Callable: A FastAPI dependency that, when resolved, returns a
-                SQLAlchemy filter condition (`ColumnElement`) or `None`.
-
-        Raises:
-            InvalidFieldError: If the specified `field` does not exist on the
-                `orm_model`.
-        """
-        self._validate_field_exists(orm_model, self.field)
+    def _filter_logic(self, orm_model, value):
         model_field = getattr(orm_model, self.field)
-
-        def filter_dependency(
-            value: Optional[self.enum_class] = Query(  # type: ignore
-                default=None,
-                alias=self.alias,
-                description=self.description,
-                **self.query_params,
-            )
-        ) -> Optional[ColumnElement]:
-            """Generates an enum equality filter condition.
-
-            Args:
-                value (Optional[Enum]): The enum member provided in the query
-                    parameter. If None, no filter is applied.
-
-            Returns:
-                Optional[ColumnElement]: A SQLAlchemy filter expression, or `None`
-                    if no value was provided.
-            """
-            if value is None:
-                return None
-            return model_field == value
-
-        return filter_dependency
+        return model_field == value
 
 
-class MultiEnumCriteria(SqlFilterCriteriaBase):
+class MultiEnumCriteria(SimpleFilterCriteriaBase):
     """A filter to match a field against a set of Enum values (SQL IN clause).
 
     This class creates a filter that accepts multiple values of a given Enum
@@ -179,8 +130,8 @@ class MultiEnumCriteria(SqlFilterCriteriaBase):
     def __init__(
         self,
         field: str,
-        alias: str,
         enum_class: Type[Enum],
+        alias: Optional[str] = None,
         description: Optional[str] = None,
         **query_params: Any,
     ):
@@ -195,11 +146,8 @@ class MultiEnumCriteria(SqlFilterCriteriaBase):
             **query_params: Additional keyword arguments to be passed to FastAPI's Query.
                 (e.g., min_length=3, max_length=50)
         """
-        self.field = field
-        self.alias = alias
+        super().__init__(field, alias, description, list[enum_class], **query_params)
         self.enum_class = enum_class
-        self.description = description or self._get_default_description()
-        self.query_params = query_params
 
     def _get_default_description(self) -> str:
         """Generates a default description for the filter.
@@ -210,49 +158,6 @@ class MultiEnumCriteria(SqlFilterCriteriaBase):
         enum_values = ", ".join([f"`{v.value}`" for v in self.enum_class])
         return f"Filter by '{self.field}' on one or more of: {enum_values}."
 
-    def build_filter(
-        self, orm_model: type[DeclarativeBase]
-    ) -> Callable[..., Optional[ColumnElement]]:
-        """Builds a FastAPI dependency for multi-enum filtering.
-
-        This method creates a callable FastAPI dependency that produces a SQL
-        `IN` clause for filtering.
-
-        Args:
-            orm_model (type[DeclarativeBase]): The SQLAlchemy model class to which
-                the filter will be applied.
-
-        Returns:
-            Callable: A FastAPI dependency that, when resolved, returns a
-                SQLAlchemy filter condition (`ColumnElement`) or `None`.
-
-        Raises:
-            InvalidFieldError: If the specified `field` does not exist on the
-                `orm_model`.
-        """
-        self._validate_field_exists(orm_model, self.field)
+    def _filter_logic(self, orm_model, value):
         model_field = getattr(orm_model, self.field)
-
-        def filter_dependency(
-            values: Optional[List[self.enum_class]] = Query(  # type: ignore
-                default=None,
-                alias=self.alias,
-                description=self.description,
-                **self.query_params,
-            )
-        ) -> Optional[ColumnElement]:
-            """Generates a multi-enum 'IN' filter condition.
-
-            Args:
-                values (Optional[List[Enum]]): A list of enum members provided
-                    in the query parameters. If None or empty, no filter is applied.
-
-            Returns:
-                Optional[ColumnElement]: A SQLAlchemy filter expression, or `None`
-                    if no values were provided.
-            """
-            if not values:
-                return None
-            return model_field.in_(values)
-
-        return filter_dependency
+        return model_field.in_(value)

@@ -1,5 +1,5 @@
 from fastapi_filterdeps.base import create_combined_filter_dependency
-from fastapi_filterdeps.generic.regex import (
+from fastapi_filterdeps.simple.regex import (
     RegexCriteria,
 )
 from tests.conftest import BaseFilterTest

@@ -1,5 +1,5 @@
 from fastapi_filterdeps.base import create_combined_filter_dependency
-from fastapi_filterdeps.json.tags import JsonDictTagsCriteria
+from fastapi_filterdeps.json.json_dict_tags import JsonDictTagsCriteria
 from tests.conftest import BaseFilterTest, BasicModel
 
 

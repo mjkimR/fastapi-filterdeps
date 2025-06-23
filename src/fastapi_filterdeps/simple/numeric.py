@@ -1,12 +1,8 @@
 from enum import Enum
-from typing import Any, Callable, Optional, Type, Union
-
-from fastapi import Query
-from sqlalchemy import ColumnElement
-from sqlalchemy.orm import DeclarativeBase
+from typing import Any, Optional, Type, Union
 
 
-from fastapi_filterdeps.base import SqlFilterCriteriaBase
+from fastapi_filterdeps.base import SimpleFilterCriteriaBase
 
 
 class NumericFilterType(str, Enum):
@@ -36,7 +32,7 @@ class NumericFilterType(str, Enum):
         return {op.value for op in cls}
 
 
-class NumericCriteria(SqlFilterCriteriaBase):
+class NumericCriteria(SimpleFilterCriteriaBase):
     """A filter for numeric comparisons (e.g., >, <, ==).
 
     This class creates a filter for a single numeric comparison on a field, such
@@ -90,9 +86,9 @@ class NumericCriteria(SqlFilterCriteriaBase):
         self,
         *,
         field: str,
-        alias: str,
         numeric_type: Type[Union[int, float]],
         operator: NumericFilterType,
+        alias: Optional[str] = None,
         description: Optional[str] = None,
         **query_params: Any,
     ):
@@ -107,12 +103,9 @@ class NumericCriteria(SqlFilterCriteriaBase):
             **query_params: Additional keyword arguments to be passed to FastAPI's Query.
                 (e.g., min_length=3, max_length=50)
         """
-        self.field = field
-        self.alias = alias
-        self.numeric_type = numeric_type
+        super().__init__(field, alias, description, numeric_type, **query_params)
         self.operator = operator
-        self.description = description or self._get_default_description()
-        self.query_params = query_params
+        self.numeric_type = numeric_type
 
     def _get_default_description(self) -> str:
         """Generates a default description based on the filter's operator."""
@@ -127,65 +120,19 @@ class NumericCriteria(SqlFilterCriteriaBase):
         desc = op_map.get(self.operator, f"uses operator {self.operator} on")
         return f"Filter records where '{self.field}' {desc} the given value."
 
-    def build_filter(
-        self, orm_model: type[DeclarativeBase]
-    ) -> Callable[..., Optional[ColumnElement]]:
-        """Builds a FastAPI dependency for numeric comparison filtering.
-
-        This method validates the provided field and operator, then creates a
-        callable FastAPI dependency. This dependency will produce the correct
-
-        SQLAlchemy filter expression when resolved by FastAPI during a request.
-
-        Args:
-            orm_model: The SQLAlchemy model class to apply the filter to.
-
-        Returns:
-            A FastAPI dependency that returns a SQLAlchemy filter
-            condition (`ColumnElement`) or `None`.
-
-        Raises:
-            InvalidFieldError: If the specified `field` does not exist on the
-                `orm_model`.
-            InvalidValueError: If the `operator` is not a valid
-                `NumericFilterType`.
-        """
-        self._validate_field_exists(orm_model, self.field)
+    def _validation_logic(self, orm_model):
         self._validate_enum_value(
             self.operator, NumericFilterType.get_all_operators(), "operator"
         )
 
-        orm_field = getattr(orm_model, self.field)
-
-        def filter_dependency(
-            value: Optional[self.numeric_type] = Query(  # type: ignore
-                default=None,
-                alias=self.alias,
-                description=self.description,
-                **self.query_params,
-            )
-        ) -> Optional[ColumnElement]:
-            """Generates a numeric comparison filter condition.
-
-            Args:
-                value: The numeric value from the query parameter. If None, no
-                    filter is applied.
-
-            Returns:
-                A SQLAlchemy filter expression, or `None` if no value
-                was provided.
-            """
-            if value is None:
-                return None
-
-            op_map = {
-                NumericFilterType.EQ: orm_field == value,
-                NumericFilterType.NE: orm_field != value,
-                NumericFilterType.GT: orm_field > value,
-                NumericFilterType.GTE: orm_field >= value,
-                NumericFilterType.LT: orm_field < value,
-                NumericFilterType.LTE: orm_field <= value,
-            }
-            return op_map[self.operator]
-
-        return filter_dependency
+    def _filter_logic(self, orm_model, value):
+        model_field = getattr(orm_model, self.field)
+        op_map = {
+            NumericFilterType.EQ: model_field == value,
+            NumericFilterType.NE: model_field != value,
+            NumericFilterType.GT: model_field > value,
+            NumericFilterType.GTE: model_field >= value,
+            NumericFilterType.LT: model_field < value,
+            NumericFilterType.LTE: model_field <= value,
+        }
+        return op_map[self.operator]

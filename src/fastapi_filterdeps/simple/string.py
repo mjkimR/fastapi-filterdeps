@@ -1,11 +1,8 @@
 from enum import Enum
-from typing import Any, Callable, List, Optional
+from typing import Any, Optional
 
-from fastapi import Query
-from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.sql.expression import ColumnElement
 
-from fastapi_filterdeps.base import SqlFilterCriteriaBase
+from fastapi_filterdeps.base import SimpleFilterCriteriaBase
 
 
 class StringMatchType(str, Enum):
@@ -35,7 +32,7 @@ class StringMatchType(str, Enum):
         return {op.value for op in cls}
 
 
-class StringCriteria(SqlFilterCriteriaBase):
+class StringCriteria(SimpleFilterCriteriaBase):
     """A filter for various types of string matching.
 
     This class provides a generic implementation for filtering string fields
@@ -86,9 +83,9 @@ class StringCriteria(SqlFilterCriteriaBase):
     def __init__(
         self,
         field: str,
-        alias: str,
         match_type: StringMatchType = StringMatchType.CONTAINS,
         case_sensitive: bool = False,
+        alias: Optional[str] = None,
         description: Optional[str] = None,
         **query_params: Any,
     ):
@@ -104,12 +101,9 @@ class StringCriteria(SqlFilterCriteriaBase):
             **query_params: Additional keyword arguments to be passed to FastAPI's Query.
                 (e.g., min_length=3, max_length=50)
         """
-        self.field = field
-        self.alias = alias
+        super().__init__(field, alias, description, str, **query_params)
         self.match_type = match_type
         self.case_sensitive = case_sensitive
-        self.description = description or self._get_default_description()
-        self.query_params = query_params
 
     def _get_default_description(self) -> str:
         """Generates a default description for the filter.
@@ -120,82 +114,38 @@ class StringCriteria(SqlFilterCriteriaBase):
         case_info = "(case-sensitive)" if self.case_sensitive else "(case-insensitive)"
         return f"Filter records where '{self.field}' matches the value using '{self.match_type}' logic{case_info}."
 
-    def build_filter(
-        self, orm_model: type[DeclarativeBase]
-    ) -> Callable[..., Optional[ColumnElement]]:
-        """Builds a FastAPI dependency for string filtering.
-
-        This method validates the inputs and creates a callable FastAPI dependency
-        that produces the appropriate SQLAlchemy filter expression.
-
-        Args:
-            orm_model: The SQLAlchemy model class to apply the filter to.
-
-        Returns:
-            A FastAPI dependency that returns a SQLAlchemy filter
-            condition (`ColumnElement`) or `None`.
-
-        Raises:
-            InvalidFieldError: If the specified `field` does not exist on the
-                `orm_model`.
-            InvalidValueError: If the `match_type` is not a valid
-                `StringMatchType`.
-        """
-        self._validate_field_exists(orm_model, self.field)
+    def _validation_logic(self, orm_model):
         self._validate_enum_value(
             self.match_type, StringMatchType.get_all_operators(), "match type"
         )
 
+    def _filter_logic(self, orm_model, value):
         model_field = getattr(orm_model, self.field)
+        op_map = {
+            StringMatchType.CONTAINS: lambda: model_field.ilike(f"%{value}%"),
+            StringMatchType.PREFIX: lambda: model_field.ilike(f"{value}%"),
+            StringMatchType.SUFFIX: lambda: model_field.ilike(f"%{value}"),
+            StringMatchType.EXACT: lambda: model_field.ilike(value),
+            StringMatchType.NOT_EQUAL: lambda: ~model_field.ilike(value),
+            StringMatchType.NOT_CONTAINS: lambda: ~model_field.ilike(f"%{value}%"),
+        }
+        op_map_cs = {
+            StringMatchType.CONTAINS: lambda: model_field.like(f"%{value}%"),
+            StringMatchType.PREFIX: lambda: model_field.like(f"{value}%"),
+            StringMatchType.SUFFIX: lambda: model_field.like(f"%{value}"),
+            StringMatchType.EXACT: lambda: model_field == value,
+            StringMatchType.NOT_EQUAL: lambda: model_field != value,
+            StringMatchType.NOT_CONTAINS: lambda: ~model_field.like(f"%{value}%"),
+        }
 
-        def filter_dependency(
-            value: Optional[str] = Query(
-                default=None,
-                alias=self.alias,
-                description=self.description,
-                **self.query_params,
-            )
-        ) -> Optional[ColumnElement]:
-            """Generates a string match filter condition.
-
-            Args:
-                value: The string value from the query parameter. If None,
-                    no filter is applied.
-
-            Returns:
-                A SQLAlchemy filter expression, or `None` if no value
-                was provided.
-            """
-            if value is None:
-                return None
-
-            op_map = {
-                StringMatchType.CONTAINS: lambda: model_field.ilike(f"%{value}%"),
-                StringMatchType.PREFIX: lambda: model_field.ilike(f"{value}%"),
-                StringMatchType.SUFFIX: lambda: model_field.ilike(f"%{value}"),
-                StringMatchType.EXACT: lambda: model_field.ilike(value),
-                StringMatchType.NOT_EQUAL: lambda: ~model_field.ilike(value),
-                StringMatchType.NOT_CONTAINS: lambda: ~model_field.ilike(f"%{value}%"),
-            }
-            op_map_cs = {
-                StringMatchType.CONTAINS: lambda: model_field.like(f"%{value}%"),
-                StringMatchType.PREFIX: lambda: model_field.like(f"{value}%"),
-                StringMatchType.SUFFIX: lambda: model_field.like(f"%{value}"),
-                StringMatchType.EXACT: lambda: model_field == value,
-                StringMatchType.NOT_EQUAL: lambda: model_field != value,
-                StringMatchType.NOT_CONTAINS: lambda: ~model_field.like(f"%{value}%"),
-            }
-
-            return (
-                op_map_cs[self.match_type]()
-                if self.case_sensitive
-                else op_map[self.match_type]()
-            )
-
-        return filter_dependency
+        return (
+            op_map_cs[self.match_type]()
+            if self.case_sensitive
+            else op_map[self.match_type]()
+        )
 
 
-class StringSetCriteria(SqlFilterCriteriaBase):
+class StringSetCriteria(SimpleFilterCriteriaBase):
     """A filter to match a field against a set of string values (SQL IN/NOT IN).
 
     This class provides a generic implementation for filtering string fields using
@@ -245,8 +195,8 @@ class StringSetCriteria(SqlFilterCriteriaBase):
     def __init__(
         self,
         field: str,
-        alias: str,
         exclude: bool = False,
+        alias: Optional[str] = None,
         description: Optional[str] = None,
         **query_params: Any,
     ):
@@ -261,11 +211,8 @@ class StringSetCriteria(SqlFilterCriteriaBase):
             **query_params: Additional keyword arguments to be passed to FastAPI's Query.
                 (e.g., min_length=3, max_length=50)
         """
-        self.field = field
-        self.alias = alias
+        super().__init__(field, alias, description, list[str], **query_params)
         self.exclude = exclude
-        self.description = description or self._get_default_description()
-        self.query_params = query_params
 
     def _get_default_description(self) -> str:
         """Generates a default description for the filter.
@@ -273,54 +220,8 @@ class StringSetCriteria(SqlFilterCriteriaBase):
         Returns:
             The default description for the OpenAPI documentation.
         """
-        verb = "is not in" if self.exclude else "is in"
         return f"Filter records where '{self.field}' is {'' if not self.exclude else 'not '}in the provided list of values."
 
-    def build_filter(
-        self, orm_model: type[DeclarativeBase]
-    ) -> Callable[..., Optional[ColumnElement]]:
-        """Builds a FastAPI dependency for string set filtering.
-
-        This method creates a callable FastAPI dependency that produces either a
-        SQL `IN` or `NOT IN` clause.
-
-        Args:
-            orm_model: The SQLAlchemy model class to apply the filter to.
-
-        Returns:
-            A FastAPI dependency that returns a SQLAlchemy filter
-            condition (`ColumnElement`) or `None`.
-
-        Raises:
-            InvalidFieldError: If the specified `field` does not exist on the
-                `orm_model`.
-        """
-        self._validate_field_exists(orm_model, self.field)
+    def _filter_logic(self, orm_model, value):
         model_field = getattr(orm_model, self.field)
-
-        def filter_dependency(
-            values: Optional[List[str]] = Query(
-                default=None,
-                alias=self.alias,
-                description=self.description,
-                **self.query_params,
-            )
-        ) -> Optional[ColumnElement]:
-            """Generates a string set (IN/NOT IN) filter condition.
-
-            Args:
-                values: A list of string values from the query parameter. If
-                    None or empty, no filter is applied.
-
-            Returns:
-                A SQLAlchemy filter expression, or `None` if no values
-                were provided.
-            """
-            if not values:
-                return None
-
-            return (
-                model_field.notin_(values) if self.exclude else model_field.in_(values)
-            )
-
-        return filter_dependency
+        return model_field.notin_(value) if self.exclude else model_field.in_(value)

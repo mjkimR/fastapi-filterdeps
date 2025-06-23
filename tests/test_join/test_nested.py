@@ -1,8 +1,8 @@
 from sqlalchemy import func
 from fastapi_filterdeps.base import create_combined_filter_dependency
-from fastapi_filterdeps.generic.having import GroupByHavingCriteria
-from fastapi_filterdeps.join.nested import JoinNestedFilterCriteria
-from fastapi_filterdeps.generic.binary import BinaryCriteria, BinaryFilterType
+from fastapi_filterdeps.complex.having import GroupByHavingCriteria
+from fastapi_filterdeps.complex.join_nested import JoinNestedFilterCriteria
+from fastapi_filterdeps.simple.binary import BinaryCriteria, BinaryFilterType
 from tests.conftest import BaseFilterTest, BasicModel
 from tests.models import BasicModel, Comment, Vote
 

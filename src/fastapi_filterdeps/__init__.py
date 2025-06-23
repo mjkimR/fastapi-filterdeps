@@ -1,10 +1,10 @@
 from fastapi_filterdeps.base import (
     SqlFilterCriteriaBase,
-    create_combined_filter_dependency,
+    SimpleFilterCriteriaBase,
 )
 
 __all__ = [
     # Base
     "SqlFilterCriteriaBase",
-    "create_combined_filter_dependency",
+    "SimpleFilterCriteriaBase",
 ]

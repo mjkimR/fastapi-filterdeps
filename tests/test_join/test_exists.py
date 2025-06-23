@@ -1,5 +1,5 @@
 from fastapi_filterdeps.base import create_combined_filter_dependency
-from fastapi_filterdeps.join.exists import JoinExistsCriteria
+from fastapi_filterdeps.complex.join_exists import JoinExistsCriteria
 from tests.conftest import BaseFilterTest
 
 from tests.models import BasicModel, Comment

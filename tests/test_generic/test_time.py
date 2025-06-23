@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, UTC
 from dateutil.relativedelta import relativedelta
 import pytest
 from fastapi_filterdeps.base import create_combined_filter_dependency
-from fastapi_filterdeps.generic.time import (
+from fastapi_filterdeps.simple.time import (
     TimeCriteria,
     TimeMatchType,
     RelativeTimeCriteria,

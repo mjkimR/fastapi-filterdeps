@@ -5,6 +5,7 @@ from typing import Optional, Type, Any, Union, Callable, Sequence, TYPE_CHECKING
 from sqlalchemy import Column, ColumnElement
 import sqlalchemy
 from sqlalchemy.orm import DeclarativeBase
+from fastapi import Query
 
 from fastapi_filterdeps.exceptions import (
     ConfigurationError,
@@ -17,7 +18,7 @@ from fastapi_filterdeps.exceptions import (
 
 if TYPE_CHECKING:
     from fastapi_filterdeps.combinators.invert import InvertCriteria
-    from fastapi_filterdeps.combinators.combine import CombineCriteria, CombineOperator
+    from fastapi_filterdeps.combinators.combine import CombineCriteria
 
 
 class SqlFilterCriteriaBase:
@@ -294,196 +295,53 @@ class SqlFilterCriteriaBase:
         return CombineCriteria(CombineOperator.OR, self, other)
 
 
-def create_combined_filter_dependency(
-    *filter_options: SqlFilterCriteriaBase,
-    orm_model: Type[DeclarativeBase],
-) -> Callable:
-    """Dynamically creates a single FastAPI dependency from multiple filter criteria.
+class SimpleFilterCriteriaBase(SqlFilterCriteriaBase):
+    def __init__(
+        self,
+        field: str,
+        alias: Optional[str] = None,
+        description: Optional[str] = None,
+        bound_type: Optional[type] = None,
+        **query_params: Any,
+    ):
+        self.field = field
+        self.alias = alias
+        self.description = description
+        self.bound_type = bound_type
+        self.query_params = query_params
 
-    This factory function is the primary user-facing interface of the library.
-    It takes multiple `SqlFilterCriteriaBase` instances (like `StringCriteria`,
-    `NumericCriteria`, etc.), inspects the query parameters required by each,
-    and constructs a single, unified dependency function.
+    def _get_default_description(self) -> str:
+        return f"Filter by field '{self.field}'"
 
-    This resulting function can be used directly with `fastapi.Depends` in an
-    endpoint. FastAPI will use its signature to handle request validation,
-    OpenAPI documentation generation, and dependency injection. When the endpoint
-    is called, the function executes and returns a list of active SQLAlchemy
-    filter conditions.
+    @abc.abstractmethod
+    def _filter_logic(self, orm_model, value):
+        raise NotImplementedError
 
-    Args:
-        *filter_options (SqlFilterCriteriaBase): A sequence of filter criteria
-            instances that define the available filters for the endpoint.
-        orm_model (Type[DeclarativeBase]): The SQLAlchemy ORM model class that
-            the filters will be applied against.
+    def _validation_logic(self, orm_model):
+        pass
 
-    Returns:
-        A FastAPI dependency. When injected into an endpoint, it
-        yields a list of SQLAlchemy `ColumnElement` expressions. This list
-        can be directly passed to a SQLAlchemy query's `.where()` clause
-        using the `*` splat operator.
+    def build_filter(
+        self, orm_model: DeclarativeBase
+    ) -> Callable[..., ColumnElement | list[ColumnElement] | None]:
+        self._validation_logic(orm_model)
+        if self.alias is None:
+            raise ConfigurationError("")
+        if self.bound_type is None:
+            raise ConfigurationError("")
+        description = self.description or self._get_default_description()
 
-    Raises:
-        ConfigurationError: If two or more filter criteria are configured with the
-            same query parameter alias.
+        self._validate_field_exists(orm_model, self.field)
 
-    Examples:
-        ```python
-        # In your FastAPI application (e.g., main.py)
-
-        from fastapi import FastAPI, Depends
-        from sqlalchemy import select
-        from fastapi_filterdeps import (
-            create_combined_filter_dependency,
-            StringCriteria,
-            NumericCriteria,
-            StringMatchType,
-            NumericMatchType
-        )
-        # Assume `User` is a SQLAlchemy ORM model
-
-        app = FastAPI()
-
-        # 1. Create the combined filter dependency
-        user_filters = create_combined_filter_dependency(
-            StringCriteria(
-                field="username",
-                alias="name",
-                match_type=StringMatchType.CONTAINS,
-                case_sensitive=False
-            ),
-            NumericCriteria(
-                field="karma",
-                alias="min_karma",
-                match_type=NumericMatchType.GREATER_THAN_OR_EQUAL
-            ),
-            orm_model=User,
-        )
-
-        # 2. Use the dependency in an endpoint
-        @app.get("/users/")
-        async def list_users(filters: list = Depends(user_filters)):
-            # `filters` will be a list like `[User.username.ilike('%search%')]`
-            query = select(User).where(*filters)
-            # ... execute query and return results ...
-            return {"message": "Query would be executed with applied filters."}
-
-        # The endpoint can be called like: /users/?name=john&min_karma=100
-        ```
-    """
-    param_definitions: dict[str, Any] = {}
-    filter_builders_with_metadata: list[dict] = []
-    used_parameter_aliases = set()
-    unique_param_id_counter = 0
-
-    for filter_option in filter_options:
-        filter_builder_func = filter_option.build_filter(orm_model)
-        filter_metadata = {
-            "func": filter_builder_func,
-            "params": {},
-        }
-
-        signature = inspect.signature(filter_builder_func)
-        func_parameters = signature.parameters
-
-        for param_name, param_object in func_parameters.items():
-            # Create a unique internal parameter name to avoid conflicts.
-            unique_param_name = f"{filter_option.__class__.__name__.lower()}_{param_name}_{unique_param_id_counter}"
-            unique_param_id_counter += 1
-            if unique_param_name in param_definitions:
-                raise ConfigurationError(
-                    f"Duplicate parameter name '{param_name}' found."
-                )
-
-            # Check for duplicate aliases.
-            alias = (
-                param_object.default.alias
-                if hasattr(param_object.default, "alias")
-                else param_object.name
+        def filter_dependency(
+            value: Optional[self.bound_type] = Query(  # type: ignore
+                default=None,
+                alias=self.alias,
+                description=description,
+                **self.query_params,
             )
-            if alias in used_parameter_aliases:
-                raise InvalidValueError(
-                    f"Duplicate alias '{alias}' found in filter parameters."
-                )
-            used_parameter_aliases.add(alias)
+        ) -> Optional[ColumnElement]:
+            if value is None:
+                return None
+            return self._filter_logic(orm_model=orm_model, value=value)
 
-            # Store the parameter definition for the signature.
-            param_definitions[unique_param_name] = (
-                param_object.annotation,
-                param_object.default,
-            )
-            filter_metadata["params"][unique_param_name] = param_object.name
-        filter_builders_with_metadata.append(filter_metadata)
-
-    def _combined_filter_dependency(**params):
-        collected_filter_conditions = []
-
-        for filter_spec in filter_builders_with_metadata:
-            builder = filter_spec["func"]
-            param_name_mapping = filter_spec["params"]
-            builder_arguments = {}
-
-            for param_key in param_name_mapping.keys():
-                if param_key in params:
-                    builder_arguments[param_name_mapping[param_key]] = params[param_key]
-            collected_filter_conditions.append(builder(**builder_arguments))
-
-        return combine_filter_conditions(*collected_filter_conditions)
-
-    dependency_parameters = []
-    for name, (type_hint, query_object_or_default) in param_definitions.items():
-        # Create an inspect.Parameter for each collected query parameter.
-        # This allows FastAPI to understand the expected parameters, their types, and defaults.
-        dependency_parameters.append(
-            inspect.Parameter(
-                name=name,
-                kind=inspect.Parameter.KEYWORD_ONLY,  # Ensures parameters must be passed by keyword,
-                default=query_object_or_default,
-                annotation=type_hint,
-            )
-        )
-
-    # Create a new inspect.Signature object from the list of parameters.
-    # This represents the complete signature of the function we are dynamically constructing.
-    new_signature = inspect.Signature(parameters=dependency_parameters)
-
-    # Assign the dynamically created signature to our core logic function.
-    # This is crucial for FastAPI. FastAPI inspects this __signature__ attribute
-    # to understand how to call the dependency, validate inputs, and generate
-    # accurate OpenAPI (Swagger/Redoc) documentation.
-    _combined_filter_dependency.__signature__ = new_signature
-    _combined_filter_dependency.__annotations__ = {
-        p.name: p.annotation for p in dependency_parameters
-    }
-
-    return _combined_filter_dependency
-
-
-def combine_filter_conditions(*filters) -> list[ColumnElement]:
-    """Flattens and merges multiple filter conditions into a single list.
-
-    This utility function is used internally by the dependency created by
-    `create_combined_filter_dependency`. It takes the results from individual
-    filter builders—which might be `None`, a single SQLAlchemy expression, or a
-    list of expressions—and consolidates them into a single, flat list that is
-    safe to use with a `.where()` clause.
-
-    Args:
-        *filters: A sequence of filter conditions to merge. An item can be
-            `None`, a single `ColumnElement`, or a list of `ColumnElement`s.
-
-    Returns:
-        A flat list containing all non-None filter
-        conditions.
-    """
-    results = []
-    for f in filters:
-        if f is None:
-            continue
-        if isinstance(f, list):
-            for item in f:
-                if item is not None:
-                    results.append(item)
-        else:
-            results.append(f)
-    return results
+        return filter_dependency

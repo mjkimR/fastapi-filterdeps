@@ -1,11 +1,8 @@
 from enum import Enum
-from typing import Any, Callable, Optional
+from typing import Any, Optional
 
-from fastapi import Query
-from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.sql.expression import ColumnElement
 
-from fastapi_filterdeps.base import SqlFilterCriteriaBase
+from fastapi_filterdeps.base import SimpleFilterCriteriaBase
 
 
 class BinaryFilterType(str, Enum):
@@ -31,7 +28,7 @@ class BinaryFilterType(str, Enum):
         return {op.value for op in cls}
 
 
-class BinaryCriteria(SqlFilterCriteriaBase):
+class BinaryCriteria(SimpleFilterCriteriaBase):
     """A filter for boolean fields and nullability checks.
 
     This class creates a filter based on a boolean query parameter. It can check
@@ -84,8 +81,8 @@ class BinaryCriteria(SqlFilterCriteriaBase):
     def __init__(
         self,
         field: str,
-        alias: Optional[str] = None,
         filter_type: BinaryFilterType = BinaryFilterType.IS_TRUE,
+        alias: Optional[str] = None,
         description: Optional[str] = None,
         **query_params: Any,
     ):
@@ -102,11 +99,8 @@ class BinaryCriteria(SqlFilterCriteriaBase):
             **query_params: Additional keyword arguments to be passed to FastAPI's Query.
                 (e.g., min_length=3, max_length=50)
         """
-        self.field = field
-        self.alias = alias or f"{field}_{filter_type.value}"
+        super().__init__(field, alias, description, bool, **query_params)
         self.filter_type = filter_type
-        self.description = description or self._get_default_description()
-        self.query_params = query_params
 
     def _get_default_description(self) -> str:
         """Generates a default description based on the filter type.
@@ -123,66 +117,19 @@ class BinaryCriteria(SqlFilterCriteriaBase):
         base_desc = descriptions.get(self.filter_type, f"Filter by {self.field}.")
         return f"{base_desc} Set to false to invert the filter."
 
-    def build_filter(
-        self, orm_model: type[DeclarativeBase]
-    ) -> Callable[..., Optional[ColumnElement]]:
-        """Builds a FastAPI dependency for binary condition filtering.
-
-        This method validates the provided field and creates a callable FastAPI
-        dependency. The dependency, when executed by FastAPI, will produce the
-        appropriate SQLAlchemy filter expression based on the query parameter.
-
-        Args:
-            orm_model (type[DeclarativeBase]): The SQLAlchemy model class to which
-                the filter will be applied.
-
-        Returns:
-            Callable: A FastAPI dependency that, when called with a request,
-                returns a SQLAlchemy filter condition (`ColumnElement`) or `None`.
-
-        Raises:
-            InvalidFieldError: If the specified `field` does not exist on the
-                `orm_model`.
-            InvalidValueError: If the `filter_type` is not a valid
-                `BinaryFilterType`.
-        """
-        self._validate_field_exists(orm_model, self.field)
+    def _validation_logic(self, orm_model):
         self._validate_enum_value(
             self.filter_type, BinaryFilterType.get_all_operators(), "filter type"
         )
 
+    def _filter_logic(self, orm_model, value):
         model_field = getattr(orm_model, self.field)
-
-        def filter_dependency(
-            is_value: Optional[bool] = Query(
-                default=None,
-                alias=self.alias,
-                description=self.description,
-                **self.query_params,
-            ),
-        ) -> Optional[ColumnElement]:
-            """Generates a binary filter condition based on the query parameter.
-
-            Args:
-                is_value (Optional[bool]): The boolean value from the query
-                    parameter. If None, no filter is applied. If False, the
-                    filter logic is inverted.
-
-            Returns:
-                Optional[ColumnElement]: A SQLAlchemy filter expression, or None
-                    if no filter should be applied.
-            """
-            if is_value is None:
-                return None
-
-            if self.filter_type == BinaryFilterType.IS_TRUE:
-                return model_field.is_(True) if is_value else model_field.is_(False)
-            elif self.filter_type == BinaryFilterType.IS_FALSE:
-                return model_field.is_(False) if is_value else model_field.is_(True)
-            elif self.filter_type == BinaryFilterType.IS_NONE:
-                return model_field.is_(None) if is_value else model_field.isnot(None)
-            elif self.filter_type == BinaryFilterType.IS_NOT_NONE:
-                return model_field.isnot(None) if is_value else model_field.is_(None)
-            return None
-
-        return filter_dependency
+        if self.filter_type == BinaryFilterType.IS_TRUE:
+            return model_field.is_(True) if value else model_field.is_(False)
+        elif self.filter_type == BinaryFilterType.IS_FALSE:
+            return model_field.is_(False) if value else model_field.is_(True)
+        elif self.filter_type == BinaryFilterType.IS_NONE:
+            return model_field.is_(None) if value else model_field.isnot(None)
+        elif self.filter_type == BinaryFilterType.IS_NOT_NONE:
+            return model_field.isnot(None) if value else model_field.is_(None)
+        return None

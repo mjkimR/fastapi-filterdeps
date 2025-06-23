@@ -1,15 +1,12 @@
-from typing import Any, Optional, List, Dict, Union, Callable
+from typing import Any, Optional, List, Dict, Union
 
-from fastapi import Query
-from sqlalchemy import ColumnElement
 import sqlalchemy
-from sqlalchemy.orm import DeclarativeBase
 
-from fastapi_filterdeps.base import SqlFilterCriteriaBase
-from fastapi_filterdeps.json.strategy import JsonStrategy
+from fastapi_filterdeps.base import SimpleFilterCriteriaBase
+from fastapi_filterdeps.strategy.json_strategy import JsonStrategy
 
 
-class JsonDictTagsCriteria(SqlFilterCriteriaBase):
+class JsonDictTagsCriteria(SimpleFilterCriteriaBase):
     """A specialized filter for querying key-value tags within a JSON column.
 
     This filter is designed for a common use case where a JSON field contains a
@@ -66,8 +63,8 @@ class JsonDictTagsCriteria(SqlFilterCriteriaBase):
     def __init__(
         self,
         field: str,
-        alias: str,
         strategy: JsonStrategy,
+        alias: Optional[str] = None,
         description: Optional[str] = None,
         **query_params: Any,
     ):
@@ -82,11 +79,8 @@ class JsonDictTagsCriteria(SqlFilterCriteriaBase):
                 documentation. If None, a default is generated.
             **query_params: Additional keyword arguments to be passed to FastAPI's Query.
         """
-        self.field = field
-        self.alias = alias
+        super().__init__(field, alias, description, list[str], **query_params)
         self.strategy = strategy
-        self.description = description or self._get_default_description()
-        self.query_params = query_params
 
     def _get_default_description(self) -> str:
         """Generates a default description for the filter."""
@@ -126,48 +120,18 @@ class JsonDictTagsCriteria(SqlFilterCriteriaBase):
                 parsed_tags[item.strip()] = True
         return parsed_tags
 
-    def build_filter(
-        self, orm_model: type[DeclarativeBase]
-    ) -> Callable[..., Optional[List[ColumnElement]]]:
-        """Builds a FastAPI dependency for filtering by a list of tags.
-
-        Args:
-            orm_model (type[DeclarativeBase]): The SQLAlchemy model class that
-                the filter will be applied to.
-
-        Returns:
-            Callable: A FastAPI dependency that, when resolved, produces a list
-                of SQLAlchemy filter expressions (one for each tag) or `None`.
-
-        Raises:
-            InvalidFieldError: If the specified `field` does not exist on the `orm_model`.
-            InvalidColumnTypeError: If the specified `field` is not a JSON type column.
-        """
-        self._validate_field_exists(orm_model, self.field)
+    def _validation_logic(self, orm_model):
         self._validate_column_type(orm_model, self.field, sqlalchemy.JSON)
 
-        def filter_dependency(
-            tags: Optional[List[str]] = Query(
-                default=None,
-                alias=self.alias,
-                description=self.description,
-                **self.query_params,
+    def _filter_logic(self, orm_model, value):
+        filters = []
+        tags_dict = self.parse_tags_from_query(value)
+        model_field = getattr(orm_model, self.field)
+
+        for key, value in tags_dict.items():
+            expression = self.strategy.build_tag_expression(
+                field=model_field, key=key, value=value
             )
-        ) -> Optional[List[ColumnElement]]:
-            """Generates a list of tag-based filter conditions."""
-            if not tags:
-                return None
+            filters.append(expression)
 
-            filters = []
-            tags_dict = self.parse_tags_from_query(tags)
-            model_field = getattr(orm_model, self.field)
-
-            for key, value in tags_dict.items():
-                expression = self.strategy.build_tag_expression(
-                    field=model_field, key=key, value=value
-                )
-                filters.append(expression)
-
-            return filters
-
-        return filter_dependency
+        return filters

@@ -1,6 +1,6 @@
 from fastapi_filterdeps.base import create_combined_filter_dependency
-from fastapi_filterdeps.generic.numeric import NumericCriteria, NumericFilterType
-from fastapi_filterdeps.generic.string import StringCriteria, StringMatchType
+from fastapi_filterdeps.simple.numeric import NumericCriteria, NumericFilterType
+from fastapi_filterdeps.simple.string import StringCriteria, StringMatchType
 from tests.conftest import BaseFilterTest
 from tests.models import BasicModel
 

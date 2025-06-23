@@ -1,12 +1,11 @@
 from enum import Enum
-from typing import Any, Callable, List, Optional
+from typing import Any, List, Optional
 
-from fastapi import Query
 from sqlalchemy import func, select, tuple_
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.sql.expression import ColumnElement
 
-from fastapi_filterdeps.base import SqlFilterCriteriaBase
+from fastapi_filterdeps.base import SimpleFilterCriteriaBase
 
 
 class OrderType(str, Enum):
@@ -28,7 +27,7 @@ class OrderType(str, Enum):
         return {op.value for op in cls}
 
 
-class OrderCriteria(SqlFilterCriteriaBase):
+class OrderCriteria(SimpleFilterCriteriaBase):
     """A filter to select records with the maximum or minimum value in a group.
 
     This filter uses a `ROW_NUMBER()` window function to find the single
@@ -108,12 +107,9 @@ class OrderCriteria(SqlFilterCriteriaBase):
             **query_params: Additional keyword arguments to be passed to FastAPI's Query.
                 (e.g., min_length=3, max_length=50)
         """
-        self.field = field
+        super().__init__(field, alias, description, bool, **query_params)
         self.partition_by = partition_by or []
         self.order_type = order_type
-        self.alias = alias or f"{field}_{order_type.value}"
-        self.description = description or self._get_default_description()
-        self.query_params = query_params
 
     def _get_default_description(self) -> str:
         """Generates a default description for the filter.
@@ -161,79 +157,35 @@ class OrderCriteria(SqlFilterCriteriaBase):
 
         return order_by
 
-    def build_filter(
-        self, orm_model: type[DeclarativeBase]
-    ) -> Callable[..., Optional[ColumnElement]]:
-        """Builds a FastAPI dependency for order-based filtering.
-
-        Note:
-            This implementation requires the target model to have at least one
-            primary key defined. The primary key is essential for ensuring
-            consistent and correct filtering when multiple records have the same
-            value in the ordering field.
-
-        Args:
-            orm_model: The SQLAlchemy model class to create the filter for.
-
-        Returns:
-            A FastAPI dependency that returns a SQLAlchemy filter condition
-            or `None`.
-
-        Raises:
-            InvalidFieldError: If the `field` or any `partition_by` fields do not
-                exist on the model, or if the model has no primary keys.
-        """
+    def _validation_logic(self, orm_model):
         # Validate field existence
-        self._validate_field_exists(orm_model, self.field)
         for partition_field in self.partition_by:
             self._validate_field_exists(orm_model, partition_field)
 
         # Validate primary key existence
         self._validate_model_has_primary_keys(orm_model)
 
+    def _filter_logic(self, orm_model, value):
         model_field = getattr(orm_model, self.field)
         partition_fields = [getattr(orm_model, field) for field in self.partition_by]
 
-        def filter_dependency(
-            enabled: bool = Query(
-                default=True,
-                alias=self.alias,
-                description=self.description,
-                **self.query_params,
-            )
-        ) -> Optional[ColumnElement]:
-            """Generates a filter condition for maximum/minimum values.
+        # Create window function for ranking with PK-based tie-breaking
+        order_by_clause = self._get_order_by_criteria(model_field, orm_model)
+        row_number_func = (
+            func.row_number()
+            .over(partition_by=partition_fields, order_by=order_by_clause)
+            .label("row_number")
+        )
 
-            Args:
-                enabled: The boolean flag from the query parameter that
-                    activates the filter.
+        # Create subquery that includes the row number for each record
+        subquery = select(orm_model, row_number_func).subquery()
 
-            Returns:
-                A SQLAlchemy filter condition using a subquery, or `None` if
-                filtering is disabled.
-            """
-            if not enabled:
-                return None
+        # Create the final filter: select the primary keys from the subquery
+        # where the rank is 1, and filter the main query with an IN clause.
+        pk_cols = self.get_primary_keys(orm_model)
+        pk_attrs = [getattr(orm_model, pk.name) for pk in pk_cols]
+        subq_pk_attrs = [getattr(subquery.c, pk.name) for pk in pk_cols]
 
-            # Create window function for ranking with PK-based tie-breaking
-            order_by_clause = self._get_order_by_criteria(model_field, orm_model)
-            row_number_func = (
-                func.row_number()
-                .over(partition_by=partition_fields, order_by=order_by_clause)
-                .label("row_number")
-            )
-
-            # Create subquery that includes the row number for each record
-            subquery = select(orm_model, row_number_func).subquery()
-
-            # Create the final filter: select the primary keys from the subquery
-            # where the rank is 1, and filter the main query with an IN clause.
-            pk_cols = self.get_primary_keys(orm_model)
-            pk_attrs = [getattr(orm_model, pk.name) for pk in pk_cols]
-            subq_pk_attrs = [getattr(subquery.c, pk.name) for pk in pk_cols]
-
-            return tuple_(*pk_attrs).in_(
-                select(*subq_pk_attrs).where(subquery.c.row_number == 1)
-            )
-
-        return filter_dependency
+        return tuple_(*pk_attrs).in_(
+            select(*subq_pk_attrs).where(subquery.c.row_number == 1)
+        )

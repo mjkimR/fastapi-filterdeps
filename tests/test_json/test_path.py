@@ -1,5 +1,5 @@
 from fastapi_filterdeps.base import create_combined_filter_dependency
-from fastapi_filterdeps.json.path import JsonPathCriteria, JsonPathOperation
+from fastapi_filterdeps.json.json_path import JsonPathCriteria, JsonPathOperation
 from tests.conftest import BaseFilterTest, BasicModel
 
 

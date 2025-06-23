@@ -5,23 +5,22 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 
-from fastapi_filterdeps.base import create_combined_filter_dependency
-from fastapi_filterdeps.filtersets import FilterSet
-from fastapi_filterdeps.generic.binary import BinaryCriteria, BinaryFilterType
-from fastapi_filterdeps.generic.time import TimeCriteria, TimeMatchType
-from fastapi_filterdeps.generic.enum import EnumCriteria, MultiEnumCriteria
-from fastapi_filterdeps.generic.numeric import (
+from fastapi_filterdeps.filtersets import FilterSet, create_combined_filter_dependency
+from fastapi_filterdeps.simple.binary import BinaryCriteria, BinaryFilterType
+from fastapi_filterdeps.simple.time import TimeCriteria, TimeMatchType
+from fastapi_filterdeps.simple.enum import EnumCriteria, MultiEnumCriteria
+from fastapi_filterdeps.simple.numeric import (
     NumericCriteria,
     NumericFilterType,
 )
-from fastapi_filterdeps.generic.string import (
+from fastapi_filterdeps.simple.string import (
     StringCriteria,
     StringSetCriteria,
     StringMatchType,
 )
-from fastapi_filterdeps.generic.regex import RegexCriteria
-from fastapi_filterdeps.generic.having import GroupByHavingCriteria
-from fastapi_filterdeps.join.exists import JoinExistsCriteria
+from fastapi_filterdeps.simple.regex import RegexCriteria
+from fastapi_filterdeps.complex.having import GroupByHavingCriteria
+from fastapi_filterdeps.complex.join_exists import JoinExistsCriteria
 from fastapi_filterdeps.order_by import order_by_params
 
 from database import get_db, init_db
@@ -86,6 +85,7 @@ class PostFilterSet(FilterSet):
         field="view_count",
         alias="views",
         numeric_type=int,
+        operator=NumericFilterType.EQ,
     )
     # String: title contains
     title_contains = StringCriteria(

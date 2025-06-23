@@ -18,6 +18,11 @@ dev = [
     "pytest-asyncio>=1.0.0",
     "testcontainers>=4.10.0",
 ]
+docs = [
+    "sphinx>=8.2.3",
+    "sphinx-rtd-theme>=3.0.2",
+    "sphinxcontrib-napoleon>=0.7",
+]
 examples = [
     "uvicorn>=0.34.3",
 ]

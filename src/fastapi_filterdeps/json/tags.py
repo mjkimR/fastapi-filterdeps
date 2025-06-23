@@ -34,31 +34,33 @@ class JsonDictTagsCriteria(SqlFilterCriteriaBase):
         description (Optional[str]): A custom description for the OpenAPI documentation.
         **query_params: Additional keyword arguments to be passed to FastAPI's Query.
 
-    Examples:
-        # Given a model `BasicModel` with a JSON `detail` field structured as:
-        # `{"tags": {"urgent": True, "language": "en", "priority": "high"}}`
+    Example:
+        Given a model `BasicModel` with a JSON `detail` field structured as::
+            {"tags": {"urgent": True, "language": "en", "priority": "high"}}
 
-        from fastapi_filterdeps.base import create_combined_filter_dependency
-        from fastapi_filterdeps.json.strategy import JsonOperatorStrategy
-        from your_models import BasicModel
+        Use in a FastAPI endpoint::
 
-        item_filters = create_combined_filter_dependency(
-            # This exposes a `?tags=` query parameter.
-            JsonDictTagsCriteria(
-                field="detail",
-                alias="tags",
-                strategy=JsonOperatorStrategy(), # Choose the appropriate strategy
-            ),
-            orm_model=BasicModel,
-        )
+            from fastapi_filterdeps.base import create_combined_filter_dependency
+            from fastapi_filterdeps.json.strategy import JsonOperatorStrategy
+            from your_models import BasicModel
 
-        # In your endpoint:
-        # A request to `/items?tags=urgent&tags=language:en` will find items
-        # that have BOTH the "urgent" tag AND the "language:en" tag.
-        @app.get("/items")
-        def list_items(filters=Depends(item_filters)):
-            query = select(BasicModel).where(*filters)
-            # ... execute query ...
+            item_filters = create_combined_filter_dependency(
+                # This exposes a `?tags=` query parameter.
+                JsonDictTagsCriteria(
+                    field="detail",
+                    alias="tags",
+                    strategy=JsonOperatorStrategy(), # Choose the appropriate strategy
+                ),
+                orm_model=BasicModel,
+            )
+
+            # In your endpoint:
+            # A request to `/items?tags=urgent&tags=language:en` will find items
+            # that have BOTH the "urgent" tag AND the "language:en" tag.
+            @app.get("/items")
+            def list_items(filters=Depends(item_filters)):
+                query = select(BasicModel).where(*filters)
+                # ... execute query ...
     """
 
     def __init__(

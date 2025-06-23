@@ -58,35 +58,31 @@ class OrderCriteria(SqlFilterCriteriaBase):
         alias (Optional[str]): The alias for the boolean query parameter in the
             API. If not provided, it is auto-generated (e.g., "created_at_max").
         description (Optional[str]): A custom description for the OpenAPI
-            documentation.
+            documentation. A default is generated if not provided.
         **query_params: Additional keyword arguments to be passed to FastAPI's Query.
 
-    Examples:
-        # In a FastAPI app, find the single latest review for each post.
-        # Assume a 'Review' model with 'created_at' and a 'post_id'.
+    Example:
+        In a FastAPI app, select the latest post per user::
 
-        from .models import Review
-        from fastapi_filterdeps import create_combined_filter_dependency
+            from .models import Post
+            from fastapi_filterdeps import create_combined_filter_dependency
+            from fastapi_filterdeps.generic.order import OrderCriteria, OrderType
 
-        review_filters = create_combined_filter_dependency(
-            # Creates a 'latest_review' boolean query parameter. If active,
-            # the query returns only the most recent review for each post_id.
-            OrderCriteria(
-                field="created_at",
-                partition_by=["post_id"],
-                order_type=OrderType.MAX,
-                alias="latest_review"
-            ),
-            orm_model=Review,
-        )
+            post_filters = create_combined_filter_dependency(
+                OrderCriteria(
+                    field="created_at",
+                    partition_by=["user_id"],
+                    order_type=OrderType.MAX,
+                    alias="latest_per_user",
+                    description="Select the latest post per user."
+                ),
+                orm_model=Post,
+            )
 
-        # In your endpoint, a request like GET /reviews?latest_review=true will
-        # trigger this filter. Since it's on by default, GET /reviews also works.
-
-        # @app.get("/reviews")
-        # def list_reviews(filters=Depends(review_filters)):
-        #     query = select(Review).where(*filters)
-        #     ...
+            # @app.get("/posts")
+            # def list_posts(filters=Depends(post_filters)):
+            #     query = select(Post).where(*filters)
+            #     ...
     """
 
     def __init__(

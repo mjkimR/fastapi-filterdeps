@@ -54,36 +54,33 @@ class StringCriteria(SqlFilterCriteriaBase):
             documentation. A default description is generated if not provided.
         **query_params: Additional keyword arguments to be passed to FastAPI's Query.
 
-    Examples:
-        # In a FastAPI app, define filters for a 'Post' model.
+    Example:
+        In a FastAPI app, define filters for a 'Post' model::
 
-        from .models import Post
-        from fastapi_filterdeps import create_combined_filter_dependency
+            from .models import Post
+            from fastapi_filterdeps import create_combined_filter_dependency
 
-        post_filters = create_combined_filter_dependency(
-            # Case-insensitive search for a substring in the 'title'.
-            # e.g., /posts?title_contains=hello
-            StringCriteria(
-                field="title",
-                alias="title_contains",
-                match_type=StringMatchType.CONTAINS,
-                case_sensitive=False
-            ),
-            # Case-sensitive search for a 'slug' prefix.
-            # e.g., /posts?slug_starts_with=tech-
-            StringCriteria(
-                field="slug",
-                alias="slug_starts_with",
-                match_type=StringMatchType.PREFIX,
-                case_sensitive=True
-            ),
-            orm_model=Post,
-        )
+            post_filters = create_combined_filter_dependency(
+                StringCriteria(
+                    field="title",
+                    alias="title_contains",
+                    match_type=StringMatchType.CONTAINS,
+                    case_sensitive=False,
+                    description="Filter posts by title (case-insensitive contains)"
+                ),
+                StringCriteria(
+                    field="author",
+                    alias="author_exact",
+                    match_type=StringMatchType.EXACT,
+                    case_sensitive=True,
+                    description="Filter posts by exact author name (case-sensitive)"
+                ),
+                orm_model=Post,
+            )
 
-        # @app.get("/posts")
-        # def list_posts(filters=Depends(post_filters)):
-        #     query = select(Post).where(*filters)
-        #     ...
+            # In your endpoint, a request like GET /posts?title_contains=foo&author_exact=Bar
+            # will filter for posts where the title contains 'foo' (case-insensitive)
+            # and the author is exactly 'Bar' (case-sensitive).
     """
 
     def __init__(
@@ -214,34 +211,35 @@ class StringSetCriteria(SqlFilterCriteriaBase):
             documentation. A default is generated if not provided.
         **query_params: Additional keyword arguments to be passed to FastAPI's Query.
             (e.g., min_length=3, max_length=50)
-    Examples:
-        # In a FastAPI app, define set-based filters for a 'Post' model.
 
-        from .models import Post
-        from fastapi_filterdeps import create_combined_filter_dependency
+    Example:
+        In a FastAPI app, define set-based filters for a 'Post' model::
 
-        post_filters = create_combined_filter_dependency(
-            # Filter for posts whose 'status' is one of the given values.
-            # e.g., /posts?status_in=published&status_in=archived
-            StringSetCriteria(
-                field="status",
-                alias="status_in",
-                exclude=False
-            ),
-            # Filter for posts whose 'category' is NOT one of the given values.
-            # e.g., /posts?category_not_in=spam&category_not_in=old
-            StringSetCriteria(
-                field="category",
-                alias="category_not_in",
-                exclude=True
-            ),
-            orm_model=Post,
-        )
+            from .models import Post
+            from fastapi_filterdeps import create_combined_filter_dependency
 
-        # @app.get("/posts")
-        # def list_posts(filters=Depends(post_filters)):
-        #     query = select(Post).where(*filters)
-        #     ...
+            post_filters = create_combined_filter_dependency(
+                # Filter for posts whose 'status' is one of the given values.
+                # e.g., /posts?status_in=published&status_in=archived
+                StringSetCriteria(
+                    field="status",
+                    alias="status_in",
+                    exclude=False
+                ),
+                # Filter for posts whose 'category' is NOT one of the given values.
+                # e.g., /posts?category_not_in=spam&category_not_in=old
+                StringSetCriteria(
+                    field="category",
+                    alias="category_not_in",
+                    exclude=True
+                ),
+                orm_model=Post,
+            )
+
+            # @app.get("/posts")
+            # def list_posts(filters=Depends(post_filters)):
+            #     query = select(Post).where(*filters)
+            #     ...
     """
 
     def __init__(

@@ -16,6 +16,18 @@ class JsonStrategy(abc.ABC):
 
     Subclasses must implement methods to build SQL expressions for both
     path-based and tag-based JSON queries.
+
+    Example:
+        To implement a custom JSON strategy, subclass `JsonStrategy` and implement the required methods::
+
+            class MyCustomJsonStrategy(JsonStrategy):
+                def build_path_expression(self, field, path, operation, value, array_type):
+                    # ... implementation ...
+                    pass
+
+                def build_tag_expression(self, field, key, value):
+                    # ... implementation ...
+                    pass
     """
 
     @abc.abstractmethod

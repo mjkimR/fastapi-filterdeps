@@ -38,30 +38,30 @@ class SqlFilterCriteriaBase:
     Filter criteria can be combined using logical operators: `&` (AND),
     `|` (OR), and `~` (NOT).
 
-    Examples:
-        # This is a conceptual example. `MyCustomFilter` would be a subclass.
-        # See specific criteria classes like `StringCriteria` for concrete usage.
+    Example:
+        This is a conceptual example. `MyCustomFilter` would be a subclass.
+        See specific criteria classes like `StringCriteria` for concrete usage::
 
-        class MyCustomFilter(SqlFilterCriteriaBase):
-            # ... implementation ...
-            def build_filter(self, orm_model):
-                # ... returns a dependency callable ...
-                pass
+            class MyCustomFilter(SqlFilterCriteriaBase):
+                # ... implementation ...
+                def build_filter(self, orm_model):
+                    # ... returns a dependency callable ...
+                    pass
 
-        my_filter1 = MyCustomFilter(field="name", alias="name_filter")
-        my_filter2 = MyCustomFilter(field="status", alias="status_filter")
+            my_filter1 = MyCustomFilter(field="name", alias="name_filter")
+            my_filter2 = MyCustomFilter(field="status", alias="status_filter")
 
-        # Combine filters and create the final dependency
-        CombinedFilter = create_combined_filter_dependency(
-            my_filter1,
-            ~my_filter2,  # Example of using the NOT operator
-            orm_model=MyModel
-        )
+            # Combine filters and create the final dependency
+            CombinedFilter = create_combined_filter_dependency(
+                my_filter1,
+                ~my_filter2,  # Example of using the NOT operator
+                orm_model=MyModel
+            )
 
-        @app.get("/items")
-        def get_items(filters: list = Depends(CombinedFilter)):
-            query = select(MyModel).where(*filters)
-            # ... execute query and return results ...
+            @app.get("/items")
+            def get_items(filters: list = Depends(CombinedFilter)):
+                query = select(MyModel).where(*filters)
+                # ... execute query and return results ...
     """
 
     @abc.abstractmethod

@@ -57,40 +57,33 @@ class JsonPathCriteria(SqlFilterCriteriaBase):
         operation (JsonPathOperation): The comparison operation to perform.
         strategy (JsonStrategy): The database-specific strategy for building the
             SQL filter expression.
-        array_type (bool): If True, indicates that the target value at the
-            `json_path` is an array. This is required for `CONTAINS`,
-            `ARRAY_ANY`, and `ARRAY_ALL` operations to function correctly.
-            Defaults to False.
+        array_type (bool): If True, indicates that the target value at the JSON path is an array.
         description (Optional[str]): A custom description for the OpenAPI documentation.
-        **query_params: Additional keyword arguments to pass to FastAPI's Query.
+        **query_params: Additional keyword arguments to be passed to FastAPI's Query.
 
-    Examples:
-        # In your FastAPI app, filter a `BasicModel` with a JSON `detail` field.
-        # The JSON could look like: `{"settings": {"theme": "dark"}}`
+    Example:
+        In a FastAPI app, filter items by a value inside a JSON field::
 
-        from fastapi_filterdeps.base import create_combined_filter_dependency
-        from fastapi_filterdeps.json.strategy import JsonOperatorStrategy
-        from your_models import BasicModel
+            from fastapi_filterdeps.base import create_combined_filter_dependency
+            from fastapi_filterdeps.json.strategy import JsonOperatorStrategy
+            from your_models import Item
 
-        item_filters = create_combined_filter_dependency(
-            # Create a filter that exposes a `?theme=` query parameter.
-            JsonPathCriteria(
-                field="detail",
-                alias="theme",
-                json_path=["settings", "theme"],
-                operation=JsonPathOperation.EQUALS,
-                strategy=JsonOperatorStrategy(), # Choose the appropriate strategy
-            ),
-            orm_model=BasicModel,
-        )
+            item_filters = create_combined_filter_dependency(
+                JsonPathCriteria(
+                    field="data",
+                    alias="theme",
+                    json_path=["settings", "theme"],
+                    operation="eq",
+                    strategy=JsonOperatorStrategy(),
+                    description="Filter items by theme in settings."
+                ),
+                orm_model=Item,
+            )
 
-        # In your endpoint:
-        # A request to `/items?theme=dark` will filter for items where the
-        # nested theme is "dark".
-        @app.get("/items")
-        def list_items(filters=Depends(item_filters)):
-            query = select(BasicModel).where(*filters)
-            # ... execute query ...
+            # @app.get("/items")
+            # def list_items(filters=Depends(item_filters)):
+            #     query = select(Item).where(*filters)
+            #     ...
     """
 
     def __init__(

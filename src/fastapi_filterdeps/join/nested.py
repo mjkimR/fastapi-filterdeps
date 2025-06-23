@@ -41,36 +41,32 @@ class JoinNestedFilterCriteria(SqlFilterCriteriaBase):
         include_unrelated (bool): Controls how to treat records with no
             relations at all. Defaults to False.
 
-    Examples:
-        # In a FastAPI application, define a filter to find Posts based on
-        # properties of their Comments, which are provided as query params.
+    Example:
+        In a FastAPI application, define a filter to find Posts based on properties of their Comments, which are provided as query params::
 
-        from fastapi_filterdeps.base import create_combined_filter_dependency
-        from fastapi_filterdeps.generic.string import StringCriteria
-        from fastapi_filterdeps.generic.binary import BinaryCriteria, BinaryFilterType
-        from your_models import Post, Comment
+            from fastapi_filterdeps.base import create_combined_filter_dependency
+            from fastapi_filterdeps.generic.string import StringCriteria
+            from fastapi_filterdeps.generic.binary import BinaryCriteria, BinaryFilterType
+            from your_models import Post, Comment
 
-        # Define criteria that can be applied to the Comment model
-        comment_content_filter = StringCriteria(field="content", alias="comment_contains")
-        comment_approved_filter = BinaryCriteria(field="is_approved", alias="comment_is_approved")
+            # Define criteria that can be applied to the Comment model
+            comment_content_filter = StringCriteria(field="content", alias="comment_contains")
+            comment_approved_filter = BinaryCriteria(field="is_approved", alias="comment_is_approved")
 
-        # Create the nested filter for the Post model
-        post_filters = create_combined_filter_dependency(
-            JoinNestedFilterCriteria(
-                filter_criteria=[comment_content_filter, comment_approved_filter],
-                join_condition=Post.id == Comment.post_id,
-                join_model=Comment,
-                exclude=False
-            ),
-            orm_model=Post
-        )
+            # Create the nested filter for the Post model
+            post_filters = create_combined_filter_dependency(
+                JoinNestedFilterCriteria(
+                    filter_criteria=[comment_content_filter, comment_approved_filter],
+                    join_condition=Post.id == Comment.post_id,
+                    join_model=Comment,
+                ),
+                orm_model=Post,
+            )
 
-        # In your endpoint, users can now filter posts like:
-        # ?comment_contains=hello&comment_is_approved=true
-        @app.get("/posts")
-        def list_posts(filters=Depends(post_filters)):
-            query = select(Post).where(*filters)
-            # ... execute query ...
+            # @app.get("/posts")
+            # def list_posts(filters=Depends(post_filters)):
+            #     query = select(Post).where(*filters)
+            #     ...
     """
 
     def __init__(

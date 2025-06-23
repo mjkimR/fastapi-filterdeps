@@ -25,32 +25,31 @@ class EnumCriteria(SqlFilterCriteriaBase):
             documentation. A default description is generated if not provided.
         **query_params: Additional keyword arguments to be passed to FastAPI's Query.
 
-    Examples:
-        # In a FastAPI app, define a filter for a 'Post' model with a 'status'
-        # field of type 'PostStatus' enum.
+    Example:
+        In a FastAPI app, define a filter for a 'Post' model with a 'status' field of type 'PostStatus' enum::
 
-        from .models import Post, PostStatus # Assuming PostStatus is an Enum
-        from fastapi_filterdeps import create_combined_filter_dependency
+            from .models import Post, PostStatus  # Assuming PostStatus is an Enum
+            from fastapi_filterdeps import create_combined_filter_dependency
 
-        post_filters = create_combined_filter_dependency(
-            # Creates a 'status' query parameter that accepts one of the
-            # values from the PostStatus enum.
-            EnumCriteria(
-                field="status",
-                alias="status",
-                enum_class=PostStatus,
-                description="Filter posts by their publication status."
-            ),
-            orm_model=Post,
-        )
+            post_filters = create_combined_filter_dependency(
+                # Creates a 'status' query parameter that accepts one of the
+                # values from the PostStatus enum.
+                EnumCriteria(
+                    field="status",
+                    alias="status",
+                    enum_class=PostStatus,
+                    description="Filter posts by their publication status."
+                ),
+                orm_model=Post,
+            )
 
-        # In your endpoint, a request like GET /posts?status=published
-        # will filter for posts where `post.status == PostStatus.PUBLISHED`.
+            # In your endpoint, a request like GET /posts?status=published
+            # will filter for posts where `post.status == PostStatus.PUBLISHED`.
 
-        # @app.get("/posts")
-        # def list_posts(filters=Depends(post_filters)):
-        #     query = select(Post).where(*filters)
-        #     ...
+            # @app.get("/posts")
+            # def list_posts(filters=Depends(post_filters)):
+            #     query = select(Post).where(*filters)
+            #     ...
     """
 
     def __init__(
@@ -150,32 +149,31 @@ class MultiEnumCriteria(SqlFilterCriteriaBase):
             documentation. A default description is generated if not provided.
         **query_params: Additional keyword arguments to be passed to FastAPI's Query.
 
-    Examples:
-        # In a FastAPI app, define a filter for a 'Post' model that can have
-        # multiple statuses.
+    Example:
+        In a FastAPI app, define a filter for a 'Post' model that can have multiple statuses::
 
-        from .models import Post, PostStatus # Assuming PostStatus is an Enum
-        from fastapi_filterdeps import create_combined_filter_dependency
+            from .models import Post, PostStatus  # Assuming PostStatus is an Enum
+            from fastapi_filterdeps import create_combined_filter_dependency
 
-        post_filters = create_combined_filter_dependency(
-            # Creates a 'statuses' query parameter that accepts one or more
-            # values from the PostStatus enum.
-            MultiEnumCriteria(
-                field="status",
-                alias="statuses",
-                enum_class=PostStatus,
-                description="Filter posts by one or more publication statuses."
-            ),
-            orm_model=Post,
-        )
+            post_filters = create_combined_filter_dependency(
+                # Creates a 'statuses' query parameter that accepts one or more
+                # values from the PostStatus enum.
+                MultiEnumCriteria(
+                    field="status",
+                    alias="statuses",
+                    enum_class=PostStatus,
+                    description="Filter posts by one or more publication statuses."
+                ),
+                orm_model=Post,
+            )
 
-        # In your endpoint, a request like GET /posts?statuses=draft&statuses=archived
-        # will filter for posts where `post.status` is either `DRAFT` or `ARCHIVED`.
+            # In your endpoint, a request like GET /posts?statuses=draft&statuses=archived
+            # will filter for posts where `post.status` is either `DRAFT` or `ARCHIVED`.
 
-        # @app.get("/posts")
-        # def list_posts(filters=Depends(post_filters)):
-        #     query = select(Post).where(*filters)
-        #     ...
+            # @app.get("/posts")
+            # def list_posts(filters=Depends(post_filters)):
+            #     query = select(Post).where(*filters)
+            #     ...
     """
 
     def __init__(

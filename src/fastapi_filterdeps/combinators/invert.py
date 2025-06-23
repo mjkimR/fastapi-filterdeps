@@ -29,34 +29,25 @@ class InvertCriteria(SqlFilterCriteriaBase):
         criteria (SqlFilterCriteriaBase): The filter criterion instance to be
             negated.
 
-    Examples:
-        # Define a filter to exclude posts with a specific status, e.g., 'ARCHIVED'.
-        # The recommended way is to use the `~` operator.
+    Example:
+        Define a filter to exclude posts with a specific status, e.g., 'ARCHIVED'. The recommended way is to use the `~` operator::
 
-        from fastapi_filterdeps.generic.enum import EnumCriteria
-        from my_app.models import Post, PostStatus # Fictional imports
+            from fastapi_filterdeps.generic.enum import EnumCriteria
+            from my_app.models import Post, PostStatus # Fictional imports
 
-        post_filters = create_combined_filter_dependency(
-            ~EnumCriteria(
-                field="status",
-                alias="exclude_status",
-                enum_class=PostStatus
-            ),
-            orm_model=Post,
-        )
+            post_filters = create_combined_filter_dependency(
+                ~EnumCriteria(
+                    field="status",
+                    alias="exclude_status",
+                    enum_class=PostStatus
+                ),
+                orm_model=Post,
+            )
 
-        # In your endpoint:
-        @app.get("/posts/active")
-        def list_active_posts(filters=Depends(post_filters)):
-            \"\"\"
-            Lists all posts **except** for those with a specific status.
-
-            - **exclude_status**: Provide a status to exclude from the results.
-              For example, `?exclude_status=ARCHIVED` returns all posts that
-              are not in the 'ARCHIVED' state.
-            \"\"\"
-            query = select(Post).where(*filters)
-            ...
+            # In your endpoint:
+            # @app.get("/posts/active")
+            # def list_active_posts(filters=Depends(post_filters)):
+            #     query = select(Post).where(*filters)
     """
 
     def __init__(self, criteria: SqlFilterCriteriaBase):

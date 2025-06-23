@@ -60,32 +60,34 @@ class TimeCriteria(SqlFilterCriteriaBase):
         field (str): The name of the SQLAlchemy model's datetime field.
         alias (str): The alias for the query parameter in the API endpoint.
         match_type (TimeMatchType): The comparison operator to use.
-        description (Optional[str]): A custom description for OpenAPI.
+        description (Optional[str]): A custom description for the OpenAPI documentation.
+        **query_params: Additional keyword arguments to be passed to FastAPI's Query.
 
-    Examples:
-        # In a FastAPI app, define a fixed date range filter for a 'Post' model.
+    Example:
+        In a FastAPI app, define filters for a 'Post' model's published date::
 
-        from .models import Post
-        from fastapi_filterdeps import create_combined_filter_dependency
+            from .models import Post
+            from fastapi_filterdeps import create_combined_filter_dependency
+            from fastapi_filterdeps.generic.time import TimeCriteria, TimeMatchType
 
-        post_filters = create_combined_filter_dependency(
-            # Sets the lower bound of the range (created_at >= value).
-            TimeCriteria(
-                field="created_at",
-                alias="created_after",
-                match_type=TimeMatchType.GTE
-            ),
-            # Sets the upper bound of the range (created_at <= value).
-            TimeCriteria(
-                field="created_at",
-                alias="created_before",
-                match_type=TimeMatchType.LTE
-            ),
-            orm_model=Post,
-        )
+            post_filters = create_combined_filter_dependency(
+                TimeCriteria(
+                    field="published_at",
+                    alias="published_after",
+                    match_type=TimeMatchType.GTE,
+                    description="Filter posts published after a certain date"
+                ),
+                TimeCriteria(
+                    field="published_at",
+                    alias="published_before",
+                    match_type=TimeMatchType.LTE,
+                    description="Filter posts published before a certain date"
+                ),
+                orm_model=Post,
+            )
 
-        # A request like /posts?created_after=2025-01-01T00:00:00
-        # will find all posts created on or after that timestamp.
+            # In your endpoint, a request like GET /posts?published_after=2023-01-01&published_before=2023-12-31
+            # will filter for posts published in 2023.
     """
 
     def __init__(
@@ -176,42 +178,41 @@ class TimeCriteria(SqlFilterCriteriaBase):
 
 
 class RelativeTimeCriteria(SqlFilterCriteriaBase):
-    """A filter for a dynamic, relative datetime range (e.g., "last 7 days").
+    """A filter for relative datetime comparisons (e.g., last N days/weeks/months/years).
 
-    This filter creates a date range based on a specified offset from a
-    reference date. The user provides the offset value and the time unit,
-    and the filter calculates the start and end dates for the query.
+    This class allows filtering records based on a datetime field relative to the current time.
+    For example, you can filter for records created in the last 7 days, or posts updated in the last month.
 
     Attributes:
         field (str): The name of the SQLAlchemy model's datetime field.
-        reference_alias (Optional[str]): Alias for the reference date parameter.
-            Defaults to `{field}_reference`.
-        unit_alias (Optional[str]): Alias for the time unit parameter. Defaults
-            to `{field}_unit`.
-        offset_alias (Optional[str]): Alias for the offset value parameter.
-            Defaults to `{field}_offset`.
-        include_start_bound (bool): If True, use `>=` for the start of the range.
-            If False, use `>`. Defaults to True.
-        include_end_bound (bool): If True, use `<=` for the end of the range.
-            If False, use `<`. Defaults to True.
-        description (Optional[str]): A custom description for OpenAPI.
-        **offset_query_params: Additional keyword arguments to be passed to FastAPI's Query.
-            (e.g., min_length=3, max_length=50)
-    Examples:
-        # In a FastAPI app, filter for posts created in the last 7 days.
+        alias (str): The alias for the query parameter in the API endpoint.
+        match_type (TimeMatchType): The comparison operator to use.
+        time_unit (TimeUnit): The unit of time for the relative comparison (e.g., day, week, month, year).
+        description (Optional[str]): A custom description for the OpenAPI documentation.
+        **query_params: Additional keyword arguments to be passed to FastAPI's Query.
 
-        from .models import Post
-        from fastapi_filterdeps import create_combined_filter_dependency
+    Example:
+        In a FastAPI app, filter posts created in the last N days::
 
-        post_filters = create_combined_filter_dependency(
-            # Creates 'created_at_unit' and 'created_at_offset' params.
-            RelativeTimeCriteria(field="created_at"),
-            orm_model=Post,
-        )
+            from .models import Post
+            from fastapi_filterdeps import create_combined_filter_dependency
+            from fastapi_filterdeps.generic.time import RelativeTimeCriteria, TimeMatchType, TimeUnit
 
-        # A request to /posts?created_at_offset=-7&created_at_unit=day
-        # will find all posts from the last 7 days. The reference date
-        # defaults to the current time.
+            post_filters = create_combined_filter_dependency(
+                RelativeTimeCriteria(
+                    field="created_at",
+                    alias="created_last_n_days",
+                    match_type=TimeMatchType.GTE,
+                    time_unit=TimeUnit.DAY,
+                    description="Filter posts created in the last N days."
+                ),
+                orm_model=Post,
+            )
+
+            # @app.get("/posts")
+            # def list_posts(filters=Depends(post_filters)):
+            #     query = select(Post).where(*filters)
+            #     ...
     """
 
     def __init__(

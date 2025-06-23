@@ -54,39 +54,31 @@ class BinaryCriteria(SqlFilterCriteriaBase):
             A default description is generated if not provided.
         **query_params: Additional keyword arguments to be passed to FastAPI's Query.
 
-    Examples:
-        # In a FastAPI application, define filters for a 'Post' model.
-        # Assume 'Post' has a boolean 'is_published' field and a nullable
-        # 'archived_at' field.
+    Example:
+        In a FastAPI application, define filters for a 'Post' model. Assume 'Post' has a boolean 'is_published' field and a nullable 'archived_at' field::
 
-        from fastapi_filterdeps import create_combined_filter_dependency
-        from .models import Post
+            from .models import Post
+            from fastapi_filterdeps import create_combined_filter_dependency
+            from fastapi_filterdeps.generic.binary import BinaryCriteria, BinaryFilterType
 
-        post_filters = create_combined_filter_dependency(
-            # Creates a 'published' query parameter.
-            # ?published=true -> filters for posts where is_published is True.
-            # ?published=false -> filters for posts where is_published is False.
-            BinaryCriteria(
-                field="is_published",
-                alias="published",
-                filter_type=BinaryFilterType.IS_TRUE
-            ),
-            # Creates a 'is_archived' query parameter.
-            # ?is_archived=true -> filters for posts where archived_at is not NULL.
-            # ?is_archived=false -> filters for posts where archived_at is NULL.
-            BinaryCriteria(
-                field="archived_at",
-                alias="is_archived",
-                filter_type=BinaryFilterType.IS_NOT_NONE
-            ),
-            orm_model=Post,
-        )
+            post_filters = create_combined_filter_dependency(
+                BinaryCriteria(
+                    field="is_published",
+                    alias="is_published",
+                    filter_type=BinaryFilterType.IS_TRUE,
+                    description="Filter for published posts"
+                ),
+                BinaryCriteria(
+                    field="archived_at",
+                    alias="is_archived",
+                    filter_type=BinaryFilterType.IS_NOT_NONE,
+                    description="Filter for archived posts"
+                ),
+                orm_model=Post,
+            )
 
-        # In your endpoint:
-        # @app.get("/posts")
-        # def list_posts(filters=Depends(post_filters)):
-        #     query = select(Post).where(*filters)
-        #     ...
+            # In your endpoint, a request like GET /posts?is_published=true&is_archived=false
+            # will filter for published and not archived posts.
     """
 
     def __init__(

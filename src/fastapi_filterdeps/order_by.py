@@ -35,30 +35,32 @@ def order_by_params(
         InvalidFieldError: If a field in whitelist doesn't exist in the model.
         InvalidValueError: If an order_by field is provided that's not in the whitelist.
 
-    Examples:
-        >>> from fastapi import FastAPI
-        >>> from sqlalchemy.orm import DeclarativeBase
-        >>>
-        >>> app = FastAPI()
-        >>> class User(DeclarativeBase):
-        ...     id: int
-        ...     created_at: datetime
-        ...     name: str
-        >>>
-        >>> @app.get("/users")
-        >>> def get_users(
-        ...     order: list = Depends(order_by_params(
-        ...         User,
-        ...         whitelist=["created_at", "name"],
-        ...         default="-created_at"
-        ...     ))
-        ... ):
-        ...     # order will contain SQLAlchemy order_by expressions
-        ...     return {"users": db.query(User).order_by(*order).all()}
+    Example:
+        Use in a FastAPI endpoint to provide flexible ordering for a User model::
 
-        # Query examples:
-        # GET /users?order_by=name,-created_at  # Order by name (asc) then created_at (desc)
-        # GET /users?order_by=-name  # Order by name (desc), id will be appended as tie-breaker
+            from fastapi import FastAPI, Depends
+            from sqlalchemy.orm import DeclarativeBase
+            from fastapi_filterdeps.order_by import order_by_params
+
+            app = FastAPI()
+            class User(DeclarativeBase):
+                id: int
+                created_at: datetime
+                name: str
+
+            @app.get("/users")
+            def get_users(
+                order: list = Depends(order_by_params(
+                    User,
+                    whitelist=["created_at", "name"],
+                    default="-created_at"
+                ))
+            ):
+                # order will contain SQLAlchemy order_by expressions
+                return {"users": db.query(User).order_by(*order).all()}
+
+            # Query examples:
+            # GET /users?order_by=name,-created_at  # Order by name (asc) then created_at (desc)
     """
 
     # Validation: Ensure all fields in whitelist exist in the orm_model

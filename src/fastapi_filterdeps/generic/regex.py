@@ -29,31 +29,31 @@ class RegexCriteria(SqlFilterCriteriaBase):
             documentation. A default description is generated if not provided.
         **query_params: Additional keyword arguments to be passed to FastAPI's Query.
 
-    Examples:
-        # In a FastAPI app, define a regex filter for a 'Post' model's title.
+    Example:
+        In a FastAPI app, define a regex filter for a 'Post' model's title::
 
-        from .models import Post
-        from fastapi_filterdeps import create_combined_filter_dependency
+            from .models import Post
+            from fastapi_filterdeps import create_combined_filter_dependency
 
-        post_filters = create_combined_filter_dependency(
-            # Creates a 'title_pattern' query parameter for case-insensitive
-            # regex matching on the 'title' field.
-            RegexCriteria(
-                field="title",
-                alias="title_pattern",
-                case_sensitive=False,
-                description="Filter posts by a case-insensitive regex pattern on the title."
-            ),
-            orm_model=Post,
-        )
+            post_filters = create_combined_filter_dependency(
+                # Creates a 'title_pattern' query parameter for case-insensitive
+                # regex matching on the 'title' field.
+                RegexCriteria(
+                    field="title",
+                    alias="title_pattern",
+                    case_sensitive=False,
+                    description="Filter posts by a case-insensitive regex pattern on the title."
+                ),
+                orm_model=Post,
+            )
 
-        # In your endpoint, a request like GET /posts?title_pattern=^hello
-        # will find all posts where the title starts with "hello" or "Hello", etc.
+            # In your endpoint, a request like GET /posts?title_pattern=^hello
+            # will find all posts where the title starts with "hello" or "Hello", etc.
 
-        # @app.get("/posts")
-        # def list_posts(filters=Depends(post_filters)):
-        #     query = select(Post).where(*filters)
-        #     ...
+            # @app.get("/posts")
+            # def list_posts(filters=Depends(post_filters)):
+            #     query = select(Post).where(*filters)
+            #     ...
     """
 
     def __init__(

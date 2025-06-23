@@ -57,50 +57,33 @@ class NumericCriteria(SqlFilterCriteriaBase):
             documentation. A default is generated if not provided.
         **query_params: Additional keyword arguments to be passed to FastAPI's Query.
 
-    Examples:
-        # In a FastAPI app, define filters for a 'Post' model with a
-        # 'view_count' integer field.
+    Example:
+        In a FastAPI app, define filters for a 'Product' model::
 
-        from .models import Post
-        from fastapi_filterdeps import create_combined_filter_dependency
+            from .models import Product
+            from fastapi_filterdeps import create_combined_filter_dependency
+            from fastapi_filterdeps.generic.numeric import NumericCriteria, NumericFilterType
 
-        post_filters = create_combined_filter_dependency(
-            # Creates a 'views_exact' parameter for an exact match.
-            # e.g., /posts?views_exact=100
-            NumericCriteria(
-                field="view_count",
-                alias="views_exact",
-                numeric_type=int,
-                operator=NumericFilterType.EQ,
-            ),
-            # Creates a 'min_views' parameter for a "greater than or equal to"
-            # filter, establishing the lower bound of a range.
-            # e.g., /posts?min_views=50
-            NumericCriteria(
-                field="view_count",
-                alias="min_views",
-                numeric_type=int,
-                operator=NumericFilterType.GTE,
-                description="Filter posts with at least this many views."
-            ),
-            # Creates a 'max_views' parameter for a "less than or equal to"
-            # filter, establishing the upper bound of a range.
-            # e.g., /posts?max_views=1000
-            NumericCriteria(
-                field="view_count",
-                alias="max_views",
-                numeric_type=int,
-                operator=NumericFilterType.LTE,
-            ),
-            orm_model=Post,
-        )
+            product_filters = create_combined_filter_dependency(
+                NumericCriteria(
+                    field="price",
+                    alias="min_price",
+                    numeric_type=float,
+                    operator=NumericFilterType.GTE,
+                    description="Filter products with price >= min_price"
+                ),
+                NumericCriteria(
+                    field="price",
+                    alias="max_price",
+                    numeric_type=float,
+                    operator=NumericFilterType.LTE,
+                    description="Filter products with price <= max_price"
+                ),
+                orm_model=Product,
+            )
 
-        # @app.get("/posts")
-        # def list_posts(filters=Depends(post_filters)):
-        #     # A request like /posts?min_views=50&max_views=1000 will
-        #     # find posts where view_count is between 50 and 1000.
-        #     query = select(Post).where(*filters)
-        #     ...
+            # In your endpoint, a request like GET /products?min_price=10&max_price=100
+            # will filter for products with price between 10 and 100.
     """
 
     def __init__(

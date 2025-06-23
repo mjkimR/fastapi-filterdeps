@@ -37,30 +37,27 @@ class JoinExistsCriteria(SqlFilterCriteriaBase):
             documentation. A default is generated if not provided.
         **query_params: Additional keyword arguments to be passed to FastAPI's Query.
 
-    Examples:
-        # In a FastAPI application, define a filter to find Posts that have
-        # at least one approved comment.
-        # This will expose a query parameter `?has_approved_comments=true`.
+    Example:
+        In a FastAPI application, define a filter to find Posts that have at least one approved comment::
 
-        from fastapi_filterdeps.base import create_combined_filter_dependency
-        from your_models import Post, Comment
+            from fastapi_filterdeps.base import create_combined_filter_dependency
+            from your_models import Post, Comment
 
-        post_filters = create_combined_filter_dependency(
-            JoinExistsCriteria(
-                alias="has_approved_comments",
-                filter_condition=[Comment.is_approved == True],
-                join_condition=Post.id == Comment.post_id,
-                join_model=Comment,
-                include_unrelated=False # Set to True to also get posts with no comments
-            ),
-            orm_model=Post,
-        )
+            post_filters = create_combined_filter_dependency(
+                JoinExistsCriteria(
+                    alias="has_approved_comments",
+                    filter_condition=[Comment.is_approved == True],
+                    join_condition=Post.id == Comment.post_id,
+                    join_model=Comment,
+                    include_unrelated=False # Set to True to also get posts with no comments
+                ),
+                orm_model=Post,
+            )
 
-        # In your endpoint:
-        @app.get("/posts")
-        def list_posts(filters=Depends(post_filters)):
-            query = select(Post).where(*filters)
-            # ... execute query ...
+            # @app.get("/posts")
+            # def list_posts(filters=Depends(post_filters)):
+            #     query = select(Post).where(*filters)
+            #     ...
     """
 
     def __init__(

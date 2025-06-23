@@ -42,44 +42,31 @@ class CombineCriteria(SqlFilterCriteriaBase):
         criteria_list (List[SqlFilterCriteriaBase]): The filter criteria instances
             to be combined.
 
-    Examples:
-        # Define an OR filter for a 'Post' model. This is a key use case, as
-        # create_combined_filter_dependency defaults to AND.
-        # This example finds posts that are new OR are very popular.
+    Example:
+        Define an OR filter for a 'Post' model. This is a key use case, as create_combined_filter_dependency defaults to AND. This example finds posts that are new OR are very popular::
 
-        from fastapi_filterdeps.generic.string import StringCriteria, StringMatchType
-        from fastapi_filterdeps.generic.numeric import NumericCriteria, NumericFilterType
+            from fastapi_filterdeps.generic.string import StringCriteria, StringMatchType
+            from fastapi_filterdeps.generic.numeric import NumericCriteria, NumericFilterType
 
-        # Use the `|` operator to create a logical OR.
-        post_filters = create_combined_filter_dependency(
-            StringCriteria(
-                field="title",
-                alias="title_is_new",
-                match_type=StringMatchType.PREFIX,
-                description="Filter for titles starting with '[NEW]'"
-            ) | NumericCriteria(
-                field="view_count",
-                alias="is_popular",
-                numeric_type=int,
-                operator=NumericFilterType.GT,
-                description="Filter for posts with more than 10000 views"
-            ),
-            orm_model=Post,
-        )
+            # Use the `|` operator to create a logical OR.
+            post_filters = create_combined_filter_dependency(
+                StringCriteria(
+                    field="title",
+                    alias="title_is_new",
+                    match_type=StringMatchType.PREFIX,
+                    description="Filter for titles starting with '[NEW]'"
+                ) | NumericCriteria(
+                    field="views",
+                    alias="views_popular",
+                    operator=NumericFilterType.GTE,
+                    numeric_type=int,
+                    description="Filter for posts with views >= 1000"
+                ),
+                orm_model=Post,
+            )
 
-        # In your endpoint:
-        @app.get("/posts/featured")
-        def list_featured_posts(filters=Depends(post_filters)):
-            \"\"\"
-            Lists featured posts.
-
-            A post is featured if it meets **either** of the following criteria:
-            - **title_is_new**: The title starts with `[NEW]`.
-            - **is_popular**: The view count is over 10000.
-            \"\"\"
-            # `filters` will contain a single SQLAlchemy `OR` clause.
-            query = select(Post).where(*filters)
-            ...
+            # In your endpoint, a request like GET /posts?title_is_new=[NEW]&views_popular=1000
+            # will filter for posts that are either new or very popular.
     """
 
     def __init__(self, operator: CombineOperator, *criteria: SqlFilterCriteriaBase):

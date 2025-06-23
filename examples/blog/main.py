@@ -197,7 +197,7 @@ async def redirect_to_docs():
 @app.get("/posts", response_model=List[PostRead])
 async def list_posts(
     db: Session = Depends(get_db),
-    filters=Depends(PostFilterSet.as_dependency()),
+    filters=Depends(PostFilterSet),
     order_by=Depends(
         order_by_params(Post, whitelist=["created_at", "view_count", "id"])
     ),

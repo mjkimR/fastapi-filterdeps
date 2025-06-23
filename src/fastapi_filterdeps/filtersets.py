@@ -1,17 +1,16 @@
 import inspect
-from typing import Optional, Type, Any, Callable
 
 from sqlalchemy import ColumnElement
 from sqlalchemy.orm import DeclarativeBase
 
-from typing import Callable, Dict, Any, Optional
+from typing import Callable, Dict, Any
 from fastapi_filterdeps.base import SqlFilterCriteriaBase
 from fastapi_filterdeps.exceptions import ConfigurationError, InvalidValueError
 
 
 def create_combined_filter_dependency(
     *filter_options: SqlFilterCriteriaBase,
-    orm_model: Type[DeclarativeBase],
+    orm_model: type[DeclarativeBase],
 ) -> Callable:
     """Dynamically creates a single FastAPI dependency from multiple filter criteria.
 
@@ -29,7 +28,7 @@ def create_combined_filter_dependency(
     Args:
         *filter_options (SqlFilterCriteriaBase): A sequence of filter criteria
             instances that define the available filters for the endpoint.
-        orm_model (Type[DeclarativeBase]): The SQLAlchemy ORM model class that
+        orm_model (type[DeclarativeBase]): The SQLAlchemy ORM model class that
             the filters will be applied against.
 
     Returns:
@@ -204,91 +203,66 @@ def combine_filter_conditions(*filters) -> list[ColumnElement]:
     return results
 
 
-class FilterSet:
+class FilterSetMeta(type):
     """
-    A base class for creating a collection of declarative filter criteria.
-
-    This class provides a structured and reusable way to group related filters
-    for a specific ORM model. By defining filter criteria as class attributes,
-    developers can create a self-documenting and organized set of filters
-    that can be easily converted into a single FastAPI dependency.
-
-    The alias for each query parameter is automatically inferred from the
-    attribute name, reducing boilerplate.
-
-    Attributes:
-        _filters (Dict[str, SqlFilterCriteriaBase]): A dictionary storing the
-            filter criteria instances, keyed by their attribute names.
-        _dependency (Optional[Callable]): A cached dependency function to avoid
-            re-creation on every call.
-
-    Raises:
-        ConfigurationError: If the inner `Meta` class or the `orm_model`
-            attribute within it is not defined.
+    Metaclass for the FilterSet.
+    ... (docstring) ...
     """
 
-    _filters: Dict[str, SqlFilterCriteriaBase] = {}
-    _dependency: Optional[Callable] = None
+    def __new__(mcs, name: str, bases: tuple, dct: Dict[str, Any]):
+        cls = super().__new__(mcs, name, bases, dct)
 
-    def __init_subclass__(cls, **kwargs: Any) -> None:
-        """
-        Initializes the subclass, collecting and configuring filter criteria.
-
-        This method is called automatically when a new class inherits from
-        `FilterSet`. It scans the subclass for attributes that are instances of
-        `SqlFilterCriteriaBase`, sets their query parameter alias based on the
-        attribute name, and stores them for later use.
-        """
-        super().__init_subclass__(**kwargs)
-
-        cls._filters = {
-            attr_name: attr_value
-            for attr_name, attr_value in cls.__dict__.items()
-            if isinstance(attr_value, SqlFilterCriteriaBase)
-        }
-
-        for attr_name, filter_instance in cls._filters.items():
-            if hasattr(filter_instance, "alias") and filter_instance.alias is None:
-                filter_instance.alias = attr_name
-
-    @classmethod
-    def as_dependency(cls) -> Callable[..., list[SqlFilterCriteriaBase]]:
-        """
-        Creates and returns a single, unified FastAPI dependency.
-
-        This class method is the main entry point for using the FilterSet in an
-        endpoint. It gathers all collected filter criteria and the specified ORM
-        model from the `Meta` class, then uses the core
-        `create_combined_filter_dependency` function to build the final dependency.
-
-        The generated dependency is cached to ensure it's created only once.
-
-        Returns:
-            A callable FastAPI dependency that can be used with `Depends`.
-
-        Raises:
-            ConfigurationError: If the `Meta` class or `orm_model` is not defined.
-        """
-        if cls._dependency:
-            return cls._dependency
+        if dct.get("abstract", False):
+            return cls
 
         if not hasattr(cls, "Meta") or not hasattr(cls.Meta, "orm_model"):
             raise ConfigurationError(
-                f"'{cls.__name__}' must have an inner 'Meta' class with an 'orm_model' attribute defined."
+                f"Concrete FilterSet '{name}' must have an inner 'Meta' class with an 'orm_model' attribute defined."
             )
 
         orm_model = cls.Meta.orm_model
-        filter_instances = list(cls._filters.values())
 
-        if not filter_instances:
+        filters = []
+        for attr_name, attr_value in dct.items():
+            if isinstance(attr_value, SqlFilterCriteriaBase):
+                if hasattr(attr_value, "alias") and attr_value.alias is None:
+                    attr_value.alias = attr_name
+                filters.append(attr_value)
+
+        if not filters:
 
             def no_op_dependency() -> list:
                 return []
 
-            cls._dependency = no_op_dependency
-            return cls._dependency
+            dependency_func = no_op_dependency
+        else:
+            dependency_func = create_combined_filter_dependency(
+                *filters, orm_model=orm_model
+            )
 
-        cls._dependency = create_combined_filter_dependency(
-            *filter_instances, orm_model=orm_model
-        )
-        return cls._dependency
+        cls._dependency_func = dependency_func
+        cls.__signature__ = inspect.signature(dependency_func)
+
+        return cls
+
+    def __call__(cls, *args: Any, **kwargs: Any) -> list[Any]:
+        """
+        Makes the class itself callable for FastAPI's dependency injection.
+        """
+        return cls._dependency_func(*args, **kwargs)
+
+
+class FilterSet(metaclass=FilterSetMeta):
+    """
+    A base class for creating a declarative collection of filter criteria.
+    """
+
+    # By setting abstract = True, we mark this base class so that the
+    # metaclass knows to ignore it for dependency creation.
+    abstract: bool = True
+
+    # These are defined for type-hinting and IDE support.
+    _dependency_func: Callable
+
+    class Meta:
+        orm_model: type[DeclarativeBase]

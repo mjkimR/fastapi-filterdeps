@@ -5,11 +5,9 @@ from fastapi import Depends
 from sqlalchemy import ColumnElement, and_, or_
 from sqlalchemy.orm import DeclarativeBase
 
-from fastapi_filterdeps.base import (
-    SqlFilterCriteriaBase,
-    create_combined_filter_dependency,
-)
-from fastapi_filterdeps.exceptions import ConfigurationError
+from fastapi_filterdeps.core.base import SqlFilterCriteriaBase
+from fastapi_filterdeps.core.combine import create_combined_filter_dependency
+from fastapi_filterdeps.core.exceptions import ConfigurationError
 
 
 class CombineOperator(str, Enum):
@@ -23,9 +21,8 @@ class CombineCriteria(SqlFilterCriteriaBase):
     """Combines multiple criteria with a logical AND or OR operator.
 
     This class is essential for creating complex queries by combining multiple
-    filter criteria. While `create_combined_filter_dependency` defaults to an
-    AND combination, this class allows for explicit `OR` conditions or the
-    nesting of `AND` and `OR` groups.
+    filter criteria. While `FilterSet` defaults to an AND combination, this class
+    allows for explicit `OR` conditions or the nesting of `AND` and `OR` groups.
 
     It is most commonly used via the `&` (AND) and `|` (OR) operators for a more
     intuitive and readable syntax.
@@ -43,30 +40,37 @@ class CombineCriteria(SqlFilterCriteriaBase):
             to be combined.
 
     Example:
-        Define an OR filter for a 'Post' model. This is a key use case, as create_combined_filter_dependency defaults to AND. This example finds posts that are new OR are very popular::
+        Define an OR filter for a 'Post' model. Only the combined filter is exposed as a query parameter::
 
-            from fastapi_filterdeps.generic.string import StringCriteria, StringMatchType
-            from fastapi_filterdeps.generic.numeric import NumericCriteria, NumericFilterType
+            .. code-block:: python
 
-            # Use the `|` operator to create a logical OR.
-            post_filters = create_combined_filter_dependency(
-                StringCriteria(
-                    field="title",
-                    alias="title_is_new",
-                    match_type=StringMatchType.PREFIX,
-                    description="Filter for titles starting with '[NEW]'"
-                ) | NumericCriteria(
-                    field="views",
-                    alias="views_popular",
-                    operator=NumericFilterType.GTE,
-                    numeric_type=int,
-                    description="Filter for posts with views >= 1000"
-                ),
-                orm_model=Post,
-            )
+                from fastapi_filterdeps.filtersets import FilterSet
+                from fastapi_filterdeps.filters.column.string import StringCriteria, StringMatchType
+                from fastapi_filterdeps.filters.column.numeric import NumericCriteria, NumericFilterType
+                from myapp.models import Post
 
-            # In your endpoint, a request like GET /posts?title_is_new=[NEW]&views_popular=1000
-            # will filter for posts that are either new or very popular.
+                class PostFilterSet(FilterSet):
+                    combined = (
+                        StringCriteria(
+                            field="title",
+                            alias="title_is_new",
+                            match_type=StringMatchType.PREFIX,
+                            description="Filter for titles starting with '[NEW]'"
+                        )
+                        | NumericCriteria(
+                            field="views",
+                            alias="views_popular",
+                            operator=NumericFilterType.GTE,
+                            numeric_type=int,
+                            description="Filter for posts with views >= 1000"
+                        )
+                    )
+                    class Meta:
+                        orm_model = Post
+
+                # In your endpoint:
+                # GET /posts?combined=[NEW]
+                # will filter for posts that are either new or very popular.
     """
 
     def __init__(self, operator: CombineOperator, *criteria: SqlFilterCriteriaBase):
@@ -101,6 +105,17 @@ class CombineCriteria(SqlFilterCriteriaBase):
             Callable: A FastAPI dependency that returns a single combined
                 SQLAlchemy filter expression (`ColumnElement`) or `None` if no
                 nested filters are active.
+
+        Example:
+            .. code-block:: python
+
+                class MyFilterSet(FilterSet):
+                    combined = (
+                        StringCriteria(...)
+                        & NumericCriteria(...)
+                    )
+                    class Meta:
+                        orm_model = MyModel
         """
         combined_dependency = create_combined_filter_dependency(
             *self.criteria_list, orm_model=orm_model
@@ -125,7 +140,17 @@ class CombineCriteria(SqlFilterCriteriaBase):
         """Creates a logical AND condition with another filter criterion.
 
         Allows chaining filters with the `&` operator.
-        Usage: `StringCriteria(...) & NumericCriteria(...)`
+
+        Example:
+            .. code-block:: python
+
+                class MyFilterSet(FilterSet):
+                    combined = (
+                        StringCriteria(...)
+                        & NumericCriteria(...)
+                    )
+                    class Meta:
+                        orm_model = MyModel
         """
         if self.operator == CombineOperator.AND:
             self.criteria_list.append(other)
@@ -136,7 +161,17 @@ class CombineCriteria(SqlFilterCriteriaBase):
         """Creates a logical OR condition with another filter criterion.
 
         Allows chaining filters with the `|` operator.
-        Usage: `StringCriteria(...) | NumericCriteria(...)`
+
+        Example:
+            .. code-block:: python
+
+                class MyFilterSet(FilterSet):
+                    combined = (
+                        StringCriteria(...)
+                        | NumericCriteria(...)
+                    )
+                    class Meta:
+                        orm_model = MyModel
         """
         if self.operator == CombineOperator.OR:
             self.criteria_list.append(other)

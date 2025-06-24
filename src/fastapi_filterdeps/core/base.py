@@ -1,3 +1,14 @@
+"""
+Core filter criteria base classes for FastAPI + SQLAlchemy filtering.
+
+This module provides the abstract base classes for building filter criteria, which are the building blocks for declarative filtering in FastAPI APIs using SQLAlchemy models.
+
+End users should primarily use these classes by composing them into a `FilterSet` (see `fastapi_filterdeps.filtersets.FilterSet`). Each filter criterion describes how a single field or relationship should be filtered, and can be combined using logical operators (&, |, ~) for advanced logic.
+
+Advanced usage:
+    You can also combine filter criteria directly using logical operators, and use `create_combined_filter_dependency` to build a dependency, but this is only recommended for advanced scenarios.
+"""
+
 import abc
 import inspect
 from typing import Optional, Type, Any, Union, Callable, Sequence, TYPE_CHECKING
@@ -7,7 +18,7 @@ import sqlalchemy
 from sqlalchemy.orm import DeclarativeBase
 from fastapi import Query
 
-from fastapi_filterdeps.exceptions import (
+from fastapi_filterdeps.core.exceptions import (
     ConfigurationError,
     InvalidFieldError,
     InvalidRelationError,
@@ -17,52 +28,27 @@ from fastapi_filterdeps.exceptions import (
 )
 
 if TYPE_CHECKING:
-    from fastapi_filterdeps.combinators.invert import InvertCriteria
-    from fastapi_filterdeps.combinators.combine import CombineCriteria
+    from fastapi_filterdeps.operations.invert import InvertCriteria
+    from fastapi_filterdeps.operations.combine import CombineCriteria
 
 
 class SqlFilterCriteriaBase:
-    """Abstract base class for creating declarative SQL filter criteria.
+    """
+    Abstract base class for creating declarative SQL filter criteria.
 
-    This class serves as the foundation for all filter criteria. Subclasses
-    must implement the `build_filter` method, which defines the specific
-    filtering logic.
+    This class is the foundation for all filter criteria. Subclasses define how a particular field or relationship should be filtered, and are intended to be composed into a `FilterSet` for use as FastAPI dependencies.
 
-    Instances of `SqlFilterCriteriaBase` subclasses are stateless "building blocks"
-    that describe how a particular field should be filtered based on API query
-    parameters. They do not perform any database operations themselves.
+    Filter criteria are stateless, reusable, and can be combined using logical operators (& for AND, | for OR, ~ for NOT). They do not perform any database operations themselves.
 
-    These building blocks are assembled into a single FastAPI dependency using the
-    `create_combined_filter_dependency` factory function. This separation of
-    concerns creates a pure, reusable, and testable filter layer.
+    End users should not use this class directly, but instead use concrete subclasses (e.g., `StringCriteria`, `NumericCriteria`) as attributes of a `FilterSet`.
 
-    Filter criteria can be combined using logical operators: `&` (AND),
-    `|` (OR), and `~` (NOT).
-
-    Example:
-        This is a conceptual example. `MyCustomFilter` would be a subclass.
-        See specific criteria classes like `StringCriteria` for concrete usage::
+    Example subclass:
+        .. code-block:: python
 
             class MyCustomFilter(SqlFilterCriteriaBase):
-                # ... implementation ...
+                ...
                 def build_filter(self, orm_model):
-                    # ... returns a dependency callable ...
-                    pass
-
-            my_filter1 = MyCustomFilter(field="name", alias="name_filter")
-            my_filter2 = MyCustomFilter(field="status", alias="status_filter")
-
-            # Combine filters and create the final dependency
-            CombinedFilter = create_combined_filter_dependency(
-                my_filter1,
-                ~my_filter2,  # Example of using the NOT operator
-                orm_model=MyModel
-            )
-
-            @app.get("/items")
-            def get_items(filters: list = Depends(CombinedFilter)):
-                query = select(MyModel).where(*filters)
-                # ... execute query and return results ...
+                    ...
     """
 
     @abc.abstractmethod
@@ -242,7 +228,7 @@ class SqlFilterCriteriaBase:
         Returns:
             An `InvertCriteria` instance that wraps this filter.
         """
-        from fastapi_filterdeps.combinators.invert import InvertCriteria
+        from fastapi_filterdeps.operations.invert import InvertCriteria
 
         return InvertCriteria(self)
 
@@ -261,7 +247,7 @@ class SqlFilterCriteriaBase:
         Returns:
             A `CombineCriteria` instance representing the logical AND.
         """
-        from fastapi_filterdeps.combinators.combine import (
+        from fastapi_filterdeps.operations.combine import (
             CombineCriteria,
             CombineOperator,
         )
@@ -285,7 +271,7 @@ class SqlFilterCriteriaBase:
         Returns:
             A `CombineCriteria` instance representing the logical OR.
         """
-        from fastapi_filterdeps.combinators.combine import (
+        from fastapi_filterdeps.operations.combine import (
             CombineCriteria,
             CombineOperator,
         )
@@ -296,6 +282,23 @@ class SqlFilterCriteriaBase:
 
 
 class SimpleFilterCriteriaBase(SqlFilterCriteriaBase):
+    """
+    Base class for simple, single-parameter filter criteria.
+
+    This class is intended for filter criteria that map a single query parameter to a single SQLAlchemy filter expression. Subclasses must implement `_filter_logic` to define the actual filtering behavior.
+
+    Typically, you will use concrete subclasses (such as `StringCriteria`, `NumericCriteria`, etc.) as attributes of a `FilterSet`.
+
+    Example subclass:
+        .. code-block:: python
+
+            class MyStringFilter(SimpleFilterCriteriaBase):
+                def _filter_logic(self, orm_model, value):
+                    if value is not None:
+                        return orm_model.name == value
+                    return None
+    """
+
     def __init__(
         self,
         field: str,
@@ -304,6 +307,16 @@ class SimpleFilterCriteriaBase(SqlFilterCriteriaBase):
         bound_type: Optional[type] = None,
         **query_params: Any,
     ):
+        """
+        Initialize a simple filter criterion.
+
+        Args:
+            field (str): The ORM model field to filter on.
+            alias (Optional[str]): The query parameter name (defaults to attribute name if None).
+            description (Optional[str]): Description for OpenAPI docs.
+            bound_type (Optional[type]): The type to bind the query parameter to.
+            **query_params: Additional keyword arguments for FastAPI's Query.
+        """
         self.field = field
         self.alias = alias
         self.description = description
@@ -311,18 +324,49 @@ class SimpleFilterCriteriaBase(SqlFilterCriteriaBase):
         self.query_params = query_params
 
     def _get_default_description(self) -> str:
+        """
+        Returns a default OpenAPI description for the filter.
+
+        Returns:
+            str: Default description string.
+        """
         return f"Filter by field '{self.field}'"
 
     @abc.abstractmethod
     def _filter_logic(self, orm_model, value):
+        """
+        Implement the actual SQLAlchemy filter logic for this criterion.
+
+        Args:
+            orm_model: The SQLAlchemy ORM model class.
+            value: The value from the query parameter.
+
+        Returns:
+            A SQLAlchemy filter expression, or None if not active.
+        """
         raise NotImplementedError
 
     def _validation_logic(self, orm_model):
+        """
+        Optional hook for subclasses to perform validation on the ORM model.
+
+        Args:
+            orm_model: The SQLAlchemy ORM model class.
+        """
         pass
 
     def build_filter(
         self, orm_model: DeclarativeBase
     ) -> Callable[..., ColumnElement | list[ColumnElement] | None]:
+        """
+        Build a FastAPI dependency that generates a filter condition for this criterion.
+
+        Args:
+            orm_model (DeclarativeBase): The SQLAlchemy ORM model class.
+
+        Returns:
+            Callable: A FastAPI dependency function that returns a filter expression or None.
+        """
         self._validation_logic(orm_model)
         if self.alias is None:
             raise ConfigurationError("")
@@ -340,8 +384,15 @@ class SimpleFilterCriteriaBase(SqlFilterCriteriaBase):
                 **self.query_params,
             )
         ) -> Optional[ColumnElement]:
-            if value is None:
-                return None
+            """
+            FastAPI dependency that returns the filter expression for this criterion.
+
+            Args:
+                value: The value from the query parameter (injected by FastAPI).
+
+            Returns:
+                Optional[ColumnElement]: The SQLAlchemy filter expression, or None if not active.
+            """
             return self._filter_logic(orm_model=orm_model, value=value)
 
         return filter_dependency

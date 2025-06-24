@@ -1,8 +1,7 @@
 from enum import Enum
 from typing import Any, Optional
 
-
-from fastapi_filterdeps.base import SimpleFilterCriteriaBase
+from fastapi_filterdeps.core.base import SimpleFilterCriteriaBase
 
 
 class BinaryFilterType(str, Enum):
@@ -24,14 +23,18 @@ class BinaryFilterType(str, Enum):
 
     @classmethod
     def get_all_operators(cls) -> set[str]:
-        """Returns a set of all available operator values."""
+        """Return all available operator values for binary filtering.
+
+        Returns:
+            set[str]: Set of all operator string values.
+        """
         return {op.value for op in cls}
 
 
 class BinaryCriteria(SimpleFilterCriteriaBase):
     """A filter for boolean fields and nullability checks.
 
-    This class creates a filter based on a boolean query parameter. It can check
+    Inherits from SimpleFilterCriteriaBase. This class creates a filter based on a boolean query parameter. It can check
     for truthiness (`IS TRUE`, `IS FALSE`) or for nullability (`IS NULL`,
     `IS NOT NULL`). The behavior is controlled by the `filter_type` attribute.
 
@@ -41,40 +44,37 @@ class BinaryCriteria(SimpleFilterCriteriaBase):
     `?{alias}=true` filters for `field IS TRUE`, and `?{alias}=false` filters
     for `field IS FALSE`.
 
-    Attributes:
+    Args:
         field (str): The name of the SQLAlchemy model field to filter on.
-        alias (str): The alias for the query parameter in the API endpoint.
-            If not provided, it is automatically generated (e.g., "is_active_is_true").
-        filter_type (BinaryFilterType): The type of binary check to perform.
-            Defaults to `BinaryFilterType.IS_TRUE`.
-        description (Optional[str]): A custom description for the OpenAPI documentation.
-            A default description is generated if not provided.
+        filter_type (BinaryFilterType): The type of binary check to perform. Defaults to `BinaryFilterType.IS_TRUE`.
+        alias (Optional[str]): The alias for the query parameter in the API endpoint.
+        description (Optional[str]): A custom description for the OpenAPI documentation. A default description is generated if not provided.
         **query_params: Additional keyword arguments to be passed to FastAPI's Query.
 
     Example:
-        In a FastAPI application, define filters for a 'Post' model. Assume 'Post' has a boolean 'is_published' field and a nullable 'archived_at' field::
+        .. code-block:: python
 
-            from .models import Post
-            from fastapi_filterdeps import create_combined_filter_dependency
-            from fastapi_filterdeps.generic.binary import BinaryCriteria, BinaryFilterType
+            from fastapi_filterdeps.filtersets import FilterSet
+            from fastapi_filterdeps.filters.column.binary import BinaryCriteria, BinaryFilterType
+            from myapp.models import Post
 
-            post_filters = create_combined_filter_dependency(
-                BinaryCriteria(
+            class PostFilterSet(FilterSet):
+                is_published = BinaryCriteria(
                     field="is_published",
                     alias="is_published",
                     filter_type=BinaryFilterType.IS_TRUE,
                     description="Filter for published posts"
-                ),
-                BinaryCriteria(
+                )
+                is_archived = BinaryCriteria(
                     field="archived_at",
                     alias="is_archived",
                     filter_type=BinaryFilterType.IS_NOT_NONE,
                     description="Filter for archived posts"
-                ),
-                orm_model=Post,
-            )
+                )
+                class Meta:
+                    orm_model = Post
 
-            # In your endpoint, a request like GET /posts?is_published=true&is_archived=false
+            # GET /posts?is_published=true&is_archived=false
             # will filter for published and not archived posts.
     """
 
@@ -86,24 +86,20 @@ class BinaryCriteria(SimpleFilterCriteriaBase):
         description: Optional[str] = None,
         **query_params: Any,
     ):
-        """Initializes the binary filter criteria.
+        """Initialize the binary filter criteria.
 
         Args:
             field (str): The name of the SQLAlchemy model field to filter on.
-            alias (Optional[str]): The alias for the query parameter. If None,
-                a default is generated from the field name and filter type.
-            filter_type (BinaryFilterType): The type of binary check to perform.
-                Defaults to `BinaryFilterType.IS_TRUE`.
-            description (Optional[str]): A custom description for the OpenAPI
-                documentation. A default is generated if not provided.
+            filter_type (BinaryFilterType): The type of binary check to perform. Defaults to `BinaryFilterType.IS_TRUE`.
+            alias (Optional[str]): The alias for the query parameter. If None, a default is generated from the field name and filter type.
+            description (Optional[str]): A custom description for the OpenAPI documentation. A default is generated if not provided.
             **query_params: Additional keyword arguments to be passed to FastAPI's Query.
-                (e.g., min_length=3, max_length=50)
         """
         super().__init__(field, alias, description, bool, **query_params)
         self.filter_type = filter_type
 
     def _get_default_description(self) -> str:
-        """Generates a default description based on the filter type.
+        """Generate a default description based on the filter type.
 
         Returns:
             str: The default description for the filter.
@@ -118,11 +114,27 @@ class BinaryCriteria(SimpleFilterCriteriaBase):
         return f"{base_desc} Set to false to invert the filter."
 
     def _validation_logic(self, orm_model):
+        """Validate that the filter_type is a valid BinaryFilterType value.
+
+        Args:
+            orm_model: The SQLAlchemy ORM model class.
+        """
         self._validate_enum_value(
             self.filter_type, BinaryFilterType.get_all_operators(), "filter type"
         )
 
     def _filter_logic(self, orm_model, value):
+        """Generate the SQLAlchemy filter expression for the binary criteria.
+
+        Args:
+            orm_model: The SQLAlchemy ORM model class.
+            value: The boolean value from the query parameter.
+
+        Returns:
+            The SQLAlchemy filter expression or None if value is None.
+        """
+        if value is None:
+            return None
         model_field = getattr(orm_model, self.field)
         if self.filter_type == BinaryFilterType.IS_TRUE:
             return model_field.is_(True) if value else model_field.is_(False)

@@ -1,8 +1,7 @@
 from enum import Enum
 from typing import Any, Optional, Type, Union
 
-
-from fastapi_filterdeps.base import SimpleFilterCriteriaBase
+from fastapi_filterdeps.core.base import SimpleFilterCriteriaBase
 
 
 class NumericFilterType(str, Enum):
@@ -28,57 +27,58 @@ class NumericFilterType(str, Enum):
 
     @classmethod
     def get_all_operators(cls) -> set[str]:
-        """Returns a set of all available operator values."""
+        """Return all available operator values for numeric filtering.
+
+        Returns:
+            set[str]: Set of all operator string values.
+        """
         return {op.value for op in cls}
 
 
 class NumericCriteria(SimpleFilterCriteriaBase):
     """A filter for numeric comparisons (e.g., >, <, ==).
 
-    This class creates a filter for a single numeric comparison on a field, such
+    Inherits from SimpleFilterCriteriaBase. This class creates a filter for a single numeric comparison on a field, such
     as checking if a value is greater than, less than, or equal to a given
     number.
 
     To create complex conditions like a numeric range (e.g., value is between 10
-    and 100), combine two instances of this class within a single
-    `create_combined_filter_dependency` call.
+    and 100), combine two instances of this class as attributes of a FilterSet.
 
-    Attributes:
+    Args:
         field (str): The name of the SQLAlchemy model field to filter on.
-        alias (str): The alias for the query parameter in the API endpoint.
-        numeric_type (Type[Union[int, float]]): The expected Python data type
-            of the query parameter's value (e.g., `int`, `float`).
+        numeric_type (Type[Union[int, float]]): The expected Python data type of the query parameter's value (e.g., `int`, `float`).
         operator (NumericFilterType): The comparison operator to apply.
-        description (Optional[str]): A custom description for the OpenAPI
-            documentation. A default is generated if not provided.
+        alias (Optional[str]): The alias for the query parameter in the API endpoint.
+        description (Optional[str]): A custom description for the OpenAPI documentation. A default is generated if not provided.
         **query_params: Additional keyword arguments to be passed to FastAPI's Query.
 
     Example:
-        In a FastAPI app, define filters for a 'Product' model::
+        .. code-block:: python
 
-            from .models import Product
-            from fastapi_filterdeps import create_combined_filter_dependency
-            from fastapi_filterdeps.generic.numeric import NumericCriteria, NumericFilterType
+            from fastapi_filterdeps.filtersets import FilterSet
+            from fastapi_filterdeps.filters.column.numeric import NumericCriteria, NumericFilterType
+            from myapp.models import Product
 
-            product_filters = create_combined_filter_dependency(
-                NumericCriteria(
+            class ProductFilterSet(FilterSet):
+                min_price = NumericCriteria(
                     field="price",
                     alias="min_price",
                     numeric_type=float,
                     operator=NumericFilterType.GTE,
                     description="Filter products with price >= min_price"
-                ),
-                NumericCriteria(
+                )
+                max_price = NumericCriteria(
                     field="price",
                     alias="max_price",
                     numeric_type=float,
                     operator=NumericFilterType.LTE,
                     description="Filter products with price <= max_price"
-                ),
-                orm_model=Product,
-            )
+                )
+                class Meta:
+                    orm_model = Product
 
-            # In your endpoint, a request like GET /products?min_price=10&max_price=100
+            # GET /products?min_price=10&max_price=100
             # will filter for products with price between 10 and 100.
     """
 
@@ -92,23 +92,26 @@ class NumericCriteria(SimpleFilterCriteriaBase):
         description: Optional[str] = None,
         **query_params: Any,
     ):
-        """Initializes the numeric filter criterion.
+        """Initialize the numeric filter criterion.
 
         Args:
-            field: The name of the SQLAlchemy model field to filter on.
-            alias: The alias for the query parameter in the API.
-            numeric_type: The Python type of the numeric value (e.g., `int`).
-            operator: The comparison operator to use.
-            description: The description for the filter parameter in OpenAPI.
+            field (str): The name of the SQLAlchemy model field to filter on.
+            numeric_type (Type[Union[int, float]]): The Python type of the numeric value (e.g., `int`).
+            operator (NumericFilterType): The comparison operator to use.
+            alias (Optional[str]): The alias for the query parameter in the API.
+            description (Optional[str]): The description for the filter parameter in OpenAPI.
             **query_params: Additional keyword arguments to be passed to FastAPI's Query.
-                (e.g., min_length=3, max_length=50)
         """
         super().__init__(field, alias, description, numeric_type, **query_params)
         self.operator = operator
         self.numeric_type = numeric_type
 
     def _get_default_description(self) -> str:
-        """Generates a default description based on the filter's operator."""
+        """Generate a default description based on the filter's operator.
+
+        Returns:
+            str: The default description for the filter.
+        """
         op_map = {
             NumericFilterType.EQ: "is equal to",
             NumericFilterType.NE: "is not equal to",
@@ -121,11 +124,26 @@ class NumericCriteria(SimpleFilterCriteriaBase):
         return f"Filter records where '{self.field}' {desc} the given value."
 
     def _validation_logic(self, orm_model):
+        """Validate that the operator is a valid NumericFilterType value.
+
+        Args:
+            orm_model: The SQLAlchemy ORM model class.
+        """
         self._validate_enum_value(
             self.operator, NumericFilterType.get_all_operators(), "operator"
         )
 
     def _filter_logic(self, orm_model, value):
+        """Generate the SQLAlchemy filter expression for the numeric criteria.
+
+        Args:
+            orm_model: The SQLAlchemy ORM model class.
+            value: The numeric value from the query parameter.
+        Returns:
+            The SQLAlchemy filter expression or None if value is None.
+        """
+        if value is None:
+            return None
         model_field = getattr(orm_model, self.field)
         op_map = {
             NumericFilterType.EQ: model_field == value,

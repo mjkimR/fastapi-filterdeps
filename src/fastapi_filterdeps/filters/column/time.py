@@ -2,8 +2,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Optional
 
-
-from fastapi_filterdeps.base import SimpleFilterCriteriaBase
+from fastapi_filterdeps.core.base import SimpleFilterCriteriaBase
 
 
 class TimeMatchType(str, Enum):
@@ -23,65 +22,53 @@ class TimeMatchType(str, Enum):
 
     @classmethod
     def get_all_operators(cls) -> set[str]:
-        """Returns a set of all available operator values."""
+        """Return all available operator values for time filtering.
+
+        Returns:
+            set[str]: Set of all operator string values.
+        """
         return {op.value for op in cls}
-
-
-class TimeUnit(str, Enum):
-    """Defines time units for relative date calculations.
-
-    Attributes:
-        DAY: Represents a day.
-        WEEK: Represents a week.
-        MONTH: Represents a calendar month.
-        YEAR: Represents a calendar year.
-    """
-
-    DAY = "day"
-    WEEK = "week"
-    MONTH = "month"
-    YEAR = "year"
 
 
 class TimeCriteria(SimpleFilterCriteriaBase):
     """A filter for a single, absolute datetime comparison.
 
-    This class creates a filter for a datetime field against a specific point in
+    Inherits from SimpleFilterCriteriaBase. This class creates a filter for a datetime field against a specific point in
     time, using an operator like "greater than" or "less than". To create a
     fixed date range (e.g., from a start date to an end date), combine two
-    instances of this class.
+    instances of this class as attributes of a FilterSet.
 
-    Attributes:
+    Args:
         field (str): The name of the SQLAlchemy model's datetime field.
-        alias (str): The alias for the query parameter in the API endpoint.
         match_type (TimeMatchType): The comparison operator to use.
+        alias (Optional[str]): The alias for the query parameter in the API endpoint.
         description (Optional[str]): A custom description for the OpenAPI documentation.
         **query_params: Additional keyword arguments to be passed to FastAPI's Query.
 
     Example:
-        In a FastAPI app, define filters for a 'Post' model's published date::
+        .. code-block:: python
 
-            from .models import Post
-            from fastapi_filterdeps import create_combined_filter_dependency
-            from fastapi_filterdeps.generic.time import TimeCriteria, TimeMatchType
+            from fastapi_filterdeps.filtersets import FilterSet
+            from fastapi_filterdeps.filters.column.time import TimeCriteria, TimeMatchType
+            from myapp.models import Post
 
-            post_filters = create_combined_filter_dependency(
-                TimeCriteria(
+            class PostFilterSet(FilterSet):
+                published_after = TimeCriteria(
                     field="published_at",
                     alias="published_after",
                     match_type=TimeMatchType.GTE,
                     description="Filter posts published after a certain date"
-                ),
-                TimeCriteria(
+                )
+                published_before = TimeCriteria(
                     field="published_at",
                     alias="published_before",
                     match_type=TimeMatchType.LTE,
                     description="Filter posts published before a certain date"
-                ),
-                orm_model=Post,
-            )
+                )
+                class Meta:
+                    orm_model = Post
 
-            # In your endpoint, a request like GET /posts?published_after=2023-01-01&published_before=2023-12-31
+            # GET /posts?published_after=2023-01-01&published_before=2023-12-31
             # will filter for posts published in 2023.
     """
 
@@ -93,21 +80,24 @@ class TimeCriteria(SimpleFilterCriteriaBase):
         description: Optional[str] = None,
         **query_params: Any,
     ):
-        """Initializes the absolute time filter criterion.
+        """Initialize the absolute time filter criterion.
 
         Args:
-            field: The name of the SQLAlchemy model's datetime field.
-            alias: The alias for the query parameter in the API.
-            match_type: The comparison operator to use.
-            description: A custom description for the OpenAPI documentation.
+            field (str): The name of the SQLAlchemy model's datetime field.
+            match_type (TimeMatchType): The comparison operator to use.
+            alias (Optional[str]): The alias for the query parameter in the API.
+            description (Optional[str]): A custom description for the OpenAPI documentation.
             **query_params: Additional keyword arguments to be passed to FastAPI's Query.
-                (e.g., min_length=3, max_length=50)
         """
         super().__init__(field, alias, description, datetime, **query_params)
         self.match_type = match_type
 
     def _get_default_description(self) -> str:
-        """Generates a default description based on the filter's configuration."""
+        """Generate a default description based on the filter's configuration.
+
+        Returns:
+            str: The default description for the filter.
+        """
         op_map = {
             TimeMatchType.GTE: "on or after",
             TimeMatchType.GT: "after",
@@ -118,11 +108,26 @@ class TimeCriteria(SimpleFilterCriteriaBase):
         return f"Filter where '{self.field}' is {desc} the given datetime."
 
     def _validation_logic(self, orm_model):
+        """Validate that the match_type is a valid TimeMatchType value.
+
+        Args:
+            orm_model: The SQLAlchemy ORM model class.
+        """
         self._validate_enum_value(
             self.match_type, TimeMatchType.get_all_operators(), "match_type"
         )
 
     def _filter_logic(self, orm_model, value):
+        """Generate the SQLAlchemy filter expression for the time criteria.
+
+        Args:
+            orm_model: The SQLAlchemy ORM model class.
+            value: The datetime value from the query parameter.
+        Returns:
+            The SQLAlchemy filter expression or None if value is None.
+        """
+        if value is None:
+            return None
         model_field = getattr(orm_model, self.field)
         op_map = {
             TimeMatchType.GTE: model_field >= value,

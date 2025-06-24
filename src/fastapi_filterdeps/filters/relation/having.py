@@ -5,7 +5,7 @@ from sqlalchemy import ColumnElement, tuple_
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import select
 
-from fastapi_filterdeps.base import SqlFilterCriteriaBase
+from fastapi_filterdeps.core.base import SqlFilterCriteriaBase
 
 
 class GroupByHavingCriteria(SqlFilterCriteriaBase):
@@ -24,7 +24,6 @@ class GroupByHavingCriteria(SqlFilterCriteriaBase):
     than a specified number of comments.
 
     Attributes:
-        alias (str): The alias for the query parameter in the API endpoint.
         value_type (Type): The expected data type of the query parameter's
             value (e.g., `int`, `float`).
         group_by_cols (List[ColumnElement]): A list of SQLAlchemy model columns
@@ -33,37 +32,40 @@ class GroupByHavingCriteria(SqlFilterCriteriaBase):
         having_builder (Callable[[Any], ColumnElement]): A callable (like a
             lambda function) that accepts the query parameter's value and
             returns the SQLAlchemy `HAVING` clause expression.
+        alias (Optional[str]): The alias for the query parameter in the API
+            endpoint (e.g., "avg_vote_score").
         description (Optional[str]): A custom description for the OpenAPI
             documentation. A default is generated if not provided.
         **query_params: Additional keyword arguments to be passed to FastAPI's Query.
 
     Example:
-        In a FastAPI app, find all Posts where the average score of associated Votes is greater than or equal to a given value::
+        .. code-block:: python
 
             from sqlalchemy import func
-            from .models import Post, Vote
-            from fastapi_filterdeps import create_combined_filter_dependency
+            from fastapi_filterdeps.filtersets import FilterSet
+            from fastapi_filterdeps.filters.relation.having import GroupByHavingCriteria
+            from myapp.models import Post, Vote
 
-            post_filters = create_combined_filter_dependency(
-                # Creates an 'avg_vote_score' query parameter.
-                # A request like /posts?avg_vote_score=4.0 will return all posts
-                # that have an average vote score of 4.0 or higher.
-                GroupByHavingCriteria(
+            class PostFilterSet(FilterSet):
+                avg_vote_score = GroupByHavingCriteria(
                     alias="avg_vote_score",
                     value_type=float,
                     group_by_cols=[Post.id],
                     having_builder=lambda value: func.avg(Vote.score) >= value
-                ),
-                orm_model=Post,
-            )
+                )
+                class Meta:
+                    orm_model = Post
+
+            # GET /posts?avg_vote_score=4.0
+            # will return all posts that have an average vote score of 4.0 or higher.
     """
 
     def __init__(
         self,
-        alias: str,
         value_type: Type,
         group_by_cols: List[ColumnElement],
         having_builder: Callable[[Any], ColumnElement],
+        alias: Optional[str] = None,
         description: Optional[str] = None,
         **query_params: Any,
     ):

@@ -5,7 +5,7 @@ from sqlalchemy import func, select, tuple_
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.sql.expression import ColumnElement
 
-from fastapi_filterdeps.base import SimpleFilterCriteriaBase
+from fastapi_filterdeps.core.base import SimpleFilterCriteriaBase
 
 
 class OrderType(str, Enum):
@@ -13,9 +13,7 @@ class OrderType(str, Enum):
 
     Attributes:
         MAX: Selects the record with the highest value in the ordering field.
-             For datetimes, this corresponds to the most recent record.
         MIN: Selects the record with the lowest value in the ordering field.
-             For datetimes, this corresponds to the oldest record.
     """
 
     MAX = "max"
@@ -23,14 +21,18 @@ class OrderType(str, Enum):
 
     @classmethod
     def get_all_operators(cls) -> set[str]:
-        """Returns a set of all available operator values."""
+        """Return all available operator values for ordering.
+
+        Returns:
+            set[str]: Set of all operator string values.
+        """
         return {op.value for op in cls}
 
 
 class OrderCriteria(SimpleFilterCriteriaBase):
     """A filter to select records with the maximum or minimum value in a group.
 
-    This filter uses a `ROW_NUMBER()` window function to find the single
+    Inherits from SimpleFilterCriteriaBase. This filter uses a `ROW_NUMBER()` window function to find the single
     top-ranked (or bottom-ranked) record within specified partitions. This is
     highly efficient for tasks like finding the latest status update for each
     ticket, the most expensive product in each category, or the oldest user
@@ -44,44 +46,34 @@ class OrderCriteria(SimpleFilterCriteriaBase):
     The generated API query parameter is a boolean flag that enables or disables
     this filter. It is enabled by default.
 
-    Attributes:
-        field (str): The name of the SQLAlchemy model field to use for ordering
-            (e.g., `created_at`, `price`).
-        partition_by (Optional[List[str]]): A list of field names to define
-            the groups (partitions). For each unique combination of these
-            fields, one record will be selected. If omitted, the filter finds
-            the single global maximum or minimum record.
-        order_type (OrderType): The ordering direction, either `OrderType.MAX`
-            to find the highest value or `OrderType.MIN` to find the lowest.
-            Defaults to `OrderType.MAX`.
-        alias (Optional[str]): The alias for the boolean query parameter in the
-            API. If not provided, it is auto-generated (e.g., "created_at_max").
-        description (Optional[str]): A custom description for the OpenAPI
-            documentation. A default is generated if not provided.
+    Args:
+        field (str): The name of the SQLAlchemy model field to use for ordering.
+        partition_by (Optional[List[str]]): A list of field names to define the groups (partitions).
+        order_type (OrderType): The ordering direction, either `OrderType.MAX` or `OrderType.MIN`. Defaults to `OrderType.MAX`.
+        alias (Optional[str]): The alias for the boolean query parameter in the API.
+        description (Optional[str]): A custom description for the OpenAPI documentation. A default is generated if not provided.
         **query_params: Additional keyword arguments to be passed to FastAPI's Query.
 
     Example:
-        In a FastAPI app, select the latest post per user::
+        .. code-block:: python
 
-            from .models import Post
-            from fastapi_filterdeps import create_combined_filter_dependency
-            from fastapi_filterdeps.generic.order import OrderCriteria, OrderType
+            from fastapi_filterdeps.filtersets import FilterSet
+            from fastapi_filterdeps.filters.column.order import OrderCriteria, OrderType
+            from myapp.models import Post
 
-            post_filters = create_combined_filter_dependency(
-                OrderCriteria(
+            class PostFilterSet(FilterSet):
+                latest_per_user = OrderCriteria(
                     field="created_at",
                     partition_by=["user_id"],
                     order_type=OrderType.MAX,
                     alias="latest_per_user",
                     description="Select the latest post per user."
-                ),
-                orm_model=Post,
-            )
+                )
+                class Meta:
+                    orm_model = Post
 
-            # @app.get("/posts")
-            # def list_posts(filters=Depends(post_filters)):
-            #     query = select(Post).where(*filters)
-            #     ...
+            # GET /posts?latest_per_user=true
+            # will select the latest post per user.
     """
 
     def __init__(
@@ -93,41 +85,36 @@ class OrderCriteria(SimpleFilterCriteriaBase):
         description: Optional[str] = None,
         **query_params: Any,
     ):
-        """Initializes the order filter criterion.
+        """Initialize the order filter criterion.
 
         Args:
-            field: The model field name for ordering (e.g., a datetime or numeric
-                field).
-            partition_by: A list of field names to partition the data by. If
-                None, a global max/min is found.
-            order_type: The direction of ordering (`MAX` or `MIN`). Defaults
-                to `OrderType.MAX`.
-            alias: The alias for the query parameter. Auto-generated if None.
-            description: Custom description for the OpenAPI documentation.
+            field (str): The model field name for ordering.
+            partition_by (Optional[List[str]]): A list of field names to partition the data by. If None, a global max/min is found.
+            order_type (OrderType): The direction of ordering (`MAX` or `MIN`). Defaults to `OrderType.MAX`.
+            alias (Optional[str]): The alias for the query parameter. Auto-generated if None.
+            description (Optional[str]): Custom description for the OpenAPI documentation.
             **query_params: Additional keyword arguments to be passed to FastAPI's Query.
-                (e.g., min_length=3, max_length=50)
         """
         super().__init__(field, alias, description, bool, **query_params)
         self.partition_by = partition_by or []
         self.order_type = order_type
 
     def _get_default_description(self) -> str:
-        """Generates a default description for the filter.
+        """Generate a default description for the filter.
 
         Returns:
-            The default description for the OpenAPI documentation.
+            str: The default description for the OpenAPI documentation.
         """
         order_str = "maximum" if self.order_type == OrderType.MAX else "minimum"
         if not self.partition_by:
             return f"Filter for the record with the {order_str} value of '{self.field}' globally."
-
         partition_fields = ", ".join(self.partition_by)
         return f"Filter for records with the {order_str} value of '{self.field}' within each partition of '{partition_fields}'."
 
     def _get_order_by_criteria(
         self, model_field: ColumnElement, orm_model: type[DeclarativeBase]
     ) -> List[ColumnElement]:
-        """Constructs the full ORDER BY clause, including primary key tie-breakers.
+        """Construct the full ORDER BY clause, including primary key tie-breakers.
 
         This ensures that the `ROW_NUMBER()` function produces deterministic
         results even when multiple rows have the same value in the primary
@@ -136,9 +123,8 @@ class OrderCriteria(SimpleFilterCriteriaBase):
         Args:
             model_field: The SQLAlchemy column element to order by.
             orm_model: The SQLAlchemy model class, used to inspect primary keys.
-
         Returns:
-            A list of SQLAlchemy column elements for the `ORDER BY` clause.
+            List[ColumnElement]: List of SQLAlchemy column elements for the `ORDER BY` clause.
         """
         order_by = []
 
@@ -158,6 +144,11 @@ class OrderCriteria(SimpleFilterCriteriaBase):
         return order_by
 
     def _validation_logic(self, orm_model):
+        """Validate partition fields and primary key existence.
+
+        Args:
+            orm_model: The SQLAlchemy ORM model class.
+        """
         # Validate field existence
         for partition_field in self.partition_by:
             self._validate_field_exists(orm_model, partition_field)
@@ -166,6 +157,16 @@ class OrderCriteria(SimpleFilterCriteriaBase):
         self._validate_model_has_primary_keys(orm_model)
 
     def _filter_logic(self, orm_model, value):
+        """Generate the SQLAlchemy filter expression for the order criteria.
+
+        Args:
+            orm_model: The SQLAlchemy ORM model class.
+            value: The boolean value from the query parameter.
+        Returns:
+            The SQLAlchemy filter expression or None if value is None.
+        """
+        if value is None:
+            return None
         model_field = getattr(orm_model, self.field)
         partition_fields = [getattr(orm_model, field) for field in self.partition_by]
 

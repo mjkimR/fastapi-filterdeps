@@ -2,7 +2,10 @@ import abc
 from typing import Any, List
 from sqlalchemy import ColumnElement, func
 
-from fastapi_filterdeps.exceptions import ConfigurationError, UnsupportedOperationError
+from fastapi_filterdeps.core.exceptions import (
+    ConfigurationError,
+    UnsupportedOperationError,
+)
 
 
 class JsonStrategy(abc.ABC):
@@ -18,7 +21,7 @@ class JsonStrategy(abc.ABC):
     path-based and tag-based JSON queries.
 
     Example:
-        To implement a custom JSON strategy, subclass `JsonStrategy` and implement the required methods::
+        .. code-block:: python
 
             class MyCustomJsonStrategy(JsonStrategy):
                 def build_path_expression(self, field, path, operation, value, array_type):

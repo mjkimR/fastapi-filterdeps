@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from enum import Enum
 from typing import Any, Callable, List, Optional
 
 from dateutil.relativedelta import relativedelta
@@ -6,8 +7,24 @@ from fastapi import Query
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.sql.expression import ColumnElement
 
-from fastapi_filterdeps.base import SqlFilterCriteriaBase
-from fastapi_filterdeps.exceptions import InvalidValueError
+from fastapi_filterdeps.core.base import SqlFilterCriteriaBase
+from fastapi_filterdeps.core.exceptions import InvalidValueError
+
+
+class TimeUnit(str, Enum):
+    """Defines time units for relative date calculations.
+
+    Attributes:
+        DAY: Represents a day.
+        WEEK: Represents a week.
+        MONTH: Represents a calendar month.
+        YEAR: Represents a calendar year.
+    """
+
+    DAY = "day"
+    WEEK = "week"
+    MONTH = "month"
+    YEAR = "year"
 
 
 class RelativeTimeCriteria(SqlFilterCriteriaBase):
@@ -27,25 +44,27 @@ class RelativeTimeCriteria(SqlFilterCriteriaBase):
     Example:
         In a FastAPI app, filter posts created in the last N days::
 
-            from .models import Post
-            from fastapi_filterdeps import create_combined_filter_dependency
-            from fastapi_filterdeps.generic.time import RelativeTimeCriteria, TimeMatchType, TimeUnit
+            .. code-block:: python
 
-            post_filters = create_combined_filter_dependency(
-                RelativeTimeCriteria(
-                    field="created_at",
-                    alias="created_last_n_days",
-                    match_type=TimeMatchType.GTE,
-                    time_unit=TimeUnit.DAY,
-                    description="Filter posts created in the last N days."
-                ),
-                orm_model=Post,
-            )
+                from fastapi_filterdeps.filtersets import FilterSet
+                from fastapi_filterdeps.filters.advanced.relative_time import RelativeTimeCriteria, TimeMatchType, TimeUnit
+                from myapp.models import Post
 
-            # @app.get("/posts")
-            # def list_posts(filters=Depends(post_filters)):
-            #     query = select(Post).where(*filters)
-            #     ...
+                class PostFilterSet(FilterSet):
+                    created_last_n_days = RelativeTimeCriteria(
+                        field="created_at",
+                        alias="created_last_n_days",
+                        match_type=TimeMatchType.GTE,
+                        time_unit=TimeUnit.DAY,
+                        description="Filter posts created in the last N days."
+                    )
+                    class Meta:
+                        orm_model = Post
+
+                # @app.get("/posts")
+                # def list_posts(filters=Depends(PostFilterSet)):
+                #     query = select(Post).where(*filters)
+                #     ...
     """
 
     def __init__(

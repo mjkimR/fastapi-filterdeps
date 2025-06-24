@@ -2,7 +2,7 @@ from typing import Any, Optional, Callable
 
 from fastapi import Query
 from sqlalchemy import select, not_, and_, or_, exists as sql_exists
-from fastapi_filterdeps.base import SqlFilterCriteriaBase
+from fastapi_filterdeps.core.base import SqlFilterCriteriaBase
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.sql.expression import ColumnElement
 
@@ -19,8 +19,6 @@ class JoinExistsCriteria(SqlFilterCriteriaBase):
     controlled with the `include_unrelated` flag.
 
     Attributes:
-        alias (str): The alias for the boolean query parameter that activates
-            this filter in the API endpoint.
         filter_condition (list[ColumnElement]): A list of static SQLAlchemy
             expressions to apply as filters on the `join_model` inside the
             subquery.
@@ -33,40 +31,41 @@ class JoinExistsCriteria(SqlFilterCriteriaBase):
             relations. Defaults to False. If True, the filter logic is adjusted
             to also include parent records that have no children in the
             `join_model`.
+        alias (Optional[str]): The alias for the query parameter in the API
+            endpoint (e.g., "has_approved_comments").
         description (Optional[str]): A custom description for the OpenAPI
             documentation. A default is generated if not provided.
         **query_params: Additional keyword arguments to be passed to FastAPI's Query.
 
     Example:
-        In a FastAPI application, define a filter to find Posts that have at least one approved comment::
+        .. code-block:: python
 
-            from fastapi_filterdeps.base import create_combined_filter_dependency
-            from your_models import Post, Comment
+            from fastapi_filterdeps.filtersets import FilterSet
+            from fastapi_filterdeps.filters.relation.exists import JoinExistsCriteria
+            from myapp.models import Post, Comment
 
-            post_filters = create_combined_filter_dependency(
-                JoinExistsCriteria(
+            class PostFilterSet(FilterSet):
+                has_approved_comments = JoinExistsCriteria(
                     alias="has_approved_comments",
                     filter_condition=[Comment.is_approved == True],
                     join_condition=Post.id == Comment.post_id,
                     join_model=Comment,
                     include_unrelated=False # Set to True to also get posts with no comments
-                ),
-                orm_model=Post,
-            )
+                )
+                class Meta:
+                    orm_model = Post
 
-            # @app.get("/posts")
-            # def list_posts(filters=Depends(post_filters)):
-            #     query = select(Post).where(*filters)
-            #     ...
+            # GET /posts?has_approved_comments=true
+            # will filter for posts that have at least one approved comment.
     """
 
     def __init__(
         self,
-        alias: str,
         filter_condition: list[ColumnElement],
         join_condition: ColumnElement,
         join_model: type[DeclarativeBase],
         include_unrelated: bool = False,
+        alias: Optional[str] = None,
         description: Optional[str] = None,
         **query_params: Any,
     ):

@@ -2,8 +2,8 @@ from typing import Any, Optional, List, Dict, Union
 
 import sqlalchemy
 
-from fastapi_filterdeps.base import SimpleFilterCriteriaBase
-from fastapi_filterdeps.strategy.json_strategy import JsonStrategy
+from fastapi_filterdeps.core.base import SimpleFilterCriteriaBase
+from fastapi_filterdeps.filters.json.json_strategy import JsonStrategy
 
 
 class JsonDictTagsCriteria(SimpleFilterCriteriaBase):
@@ -32,32 +32,24 @@ class JsonDictTagsCriteria(SimpleFilterCriteriaBase):
         **query_params: Additional keyword arguments to be passed to FastAPI's Query.
 
     Example:
-        Given a model `BasicModel` with a JSON `detail` field structured as::
-            {"tags": {"urgent": True, "language": "en", "priority": "high"}}
+        .. code-block:: python
 
-        Use in a FastAPI endpoint::
+            from fastapi_filterdeps.filtersets import FilterSet
+            from fastapi_filterdeps.filters.json.tags import JsonDictTagsCriteria
+            from fastapi_filterdeps.filters.json.json_strategy import JsonOperatorStrategy
+            from myapp.models import BasicModel
 
-            from fastapi_filterdeps.base import create_combined_filter_dependency
-            from fastapi_filterdeps.json.strategy import JsonOperatorStrategy
-            from your_models import BasicModel
-
-            item_filters = create_combined_filter_dependency(
-                # This exposes a `?tags=` query parameter.
-                JsonDictTagsCriteria(
+            class BasicModelFilterSet(FilterSet):
+                tags = JsonDictTagsCriteria(
                     field="detail",
                     alias="tags",
-                    strategy=JsonOperatorStrategy(), # Choose the appropriate strategy
-                ),
-                orm_model=BasicModel,
-            )
+                    strategy=JsonOperatorStrategy(),
+                )
+                class Meta:
+                    orm_model = BasicModel
 
-            # In your endpoint:
-            # A request to `/items?tags=urgent&tags=language:en` will find items
-            # that have BOTH the "urgent" tag AND the "language:en" tag.
-            @app.get("/items")
-            def list_items(filters=Depends(item_filters)):
-                query = select(BasicModel).where(*filters)
-                # ... execute query ...
+            # GET /items?tags=urgent&tags=language:en
+            # will filter for items that have BOTH the "urgent" tag AND the "language:en" tag.
     """
 
     def __init__(
@@ -124,6 +116,8 @@ class JsonDictTagsCriteria(SimpleFilterCriteriaBase):
         self._validate_column_type(orm_model, self.field, sqlalchemy.JSON)
 
     def _filter_logic(self, orm_model, value):
+        if value is None:
+            return None
         filters = []
         tags_dict = self.parse_tags_from_query(value)
         model_field = getattr(orm_model, self.field)

@@ -1,4 +1,4 @@
-from fastapi_filterdeps.base import (
+from fastapi_filterdeps.core.base import (
     SqlFilterCriteriaBase,
     SimpleFilterCriteriaBase,
 )

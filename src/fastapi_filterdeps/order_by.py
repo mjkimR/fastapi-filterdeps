@@ -2,8 +2,8 @@ from fastapi import Query
 from typing import Sequence, Optional
 
 from sqlalchemy.orm import DeclarativeBase
-from fastapi_filterdeps.exceptions import InvalidFieldError, InvalidValueError
-from fastapi_filterdeps.base import SqlFilterCriteriaBase
+from fastapi_filterdeps.core.exceptions import InvalidFieldError, InvalidValueError
+from fastapi_filterdeps.core.base import SqlFilterCriteriaBase
 
 
 def order_by_params(
@@ -36,8 +36,9 @@ def order_by_params(
         InvalidValueError: If an order_by field is provided that's not in the whitelist.
 
     Example:
-        Use in a FastAPI endpoint to provide flexible ordering for a User model::
+        .. code-block:: python
 
+            # Use in a FastAPI endpoint to provide flexible ordering for a User model
             from fastapi import FastAPI, Depends
             from sqlalchemy.orm import DeclarativeBase
             from fastapi_filterdeps.order_by import order_by_params

@@ -2,12 +2,11 @@ from typing import Optional, Callable, List
 
 from fastapi import Depends
 from sqlalchemy import select, and_, or_, not_, exists as sql_exists
-from fastapi_filterdeps.base import (
-    SqlFilterCriteriaBase,
-    create_combined_filter_dependency,
-)
+from fastapi_filterdeps.core.base import SqlFilterCriteriaBase
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.sql.expression import ColumnElement
+
+from fastapi_filterdeps.core.combine import create_combined_filter_dependency
 
 
 class JoinNestedFilterCriteria(SqlFilterCriteriaBase):
@@ -42,31 +41,27 @@ class JoinNestedFilterCriteria(SqlFilterCriteriaBase):
             relations at all. Defaults to False.
 
     Example:
-        In a FastAPI application, define a filter to find Posts based on properties of their Comments, which are provided as query params::
+        .. code-block:: python
 
-            from fastapi_filterdeps.base import create_combined_filter_dependency
-            from fastapi_filterdeps.generic.string import StringCriteria
-            from fastapi_filterdeps.generic.binary import BinaryCriteria, BinaryFilterType
-            from your_models import Post, Comment
+            from fastapi_filterdeps.filtersets import FilterSet
+            from fastapi_filterdeps.filters.relation.nested import JoinNestedFilterCriteria
+            from fastapi_filterdeps.filters.column.string import StringCriteria
+            from fastapi_filterdeps.filters.column.binary import BinaryCriteria, BinaryFilterType
+            from myapp.models import Post, Comment
 
-            # Define criteria that can be applied to the Comment model
-            comment_content_filter = StringCriteria(field="content", alias="comment_contains")
-            comment_approved_filter = BinaryCriteria(field="is_approved", alias="comment_is_approved")
-
-            # Create the nested filter for the Post model
-            post_filters = create_combined_filter_dependency(
-                JoinNestedFilterCriteria(
+            class PostFilterSet(FilterSet):
+                comment_content_filter = StringCriteria(field="content", alias="comment_contains")
+                comment_approved_filter = BinaryCriteria(field="is_approved", alias="comment_is_approved")
+                comments_nested = JoinNestedFilterCriteria(
                     filter_criteria=[comment_content_filter, comment_approved_filter],
                     join_condition=Post.id == Comment.post_id,
                     join_model=Comment,
-                ),
-                orm_model=Post,
-            )
+                )
+                class Meta:
+                    orm_model = Post
 
-            # @app.get("/posts")
-            # def list_posts(filters=Depends(post_filters)):
-            #     query = select(Post).where(*filters)
-            #     ...
+            # GET /posts?comment_contains=foo&comment_is_approved=true
+            # will filter for posts that have comments containing 'foo' and are approved.
     """
 
     def __init__(

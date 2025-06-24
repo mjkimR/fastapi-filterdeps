@@ -5,7 +5,8 @@ from sqlalchemy import ColumnElement, and_, not_
 from sqlalchemy.orm import DeclarativeBase
 
 
-from fastapi_filterdeps.base import SqlFilterCriteriaBase, combine_filter_conditions
+from fastapi_filterdeps.core.base import SqlFilterCriteriaBase
+from fastapi_filterdeps.core.combine import combine_filter_conditions
 
 
 class InvertCriteria(SqlFilterCriteriaBase):
@@ -30,24 +31,27 @@ class InvertCriteria(SqlFilterCriteriaBase):
             negated.
 
     Example:
-        Define a filter to exclude posts with a specific status, e.g., 'ARCHIVED'. The recommended way is to use the `~` operator::
+        Define a filter to exclude posts with a specific status, e.g., 'ARCHIVED'. The recommended way is to use the `~` operator and expose only the combined filter::
 
-            from fastapi_filterdeps.generic.enum import EnumCriteria
-            from my_app.models import Post, PostStatus # Fictional imports
+            .. code-block:: python
 
-            post_filters = create_combined_filter_dependency(
-                ~EnumCriteria(
-                    field="status",
-                    alias="exclude_status",
-                    enum_class=PostStatus
-                ),
-                orm_model=Post,
-            )
+                from fastapi_filterdeps.filtersets import FilterSet
+                from fastapi_filterdeps.filters.column.enum import EnumCriteria
+                from myapp.models import Post, PostStatus
 
-            # In your endpoint:
-            # @app.get("/posts/active")
-            # def list_active_posts(filters=Depends(post_filters)):
-            #     query = select(Post).where(*filters)
+                class PostFilterSet(FilterSet):
+                    combined = ~EnumCriteria(
+                        field="status",
+                        alias="exclude_status",
+                        enum_class=PostStatus,
+                        description="Exclude posts with this status"
+                    )
+                    class Meta:
+                        orm_model = Post
+
+                # In your endpoint:
+                # GET /posts?exclude_status=ARCHIVED
+                # will return posts that do NOT have status ARCHIVED.
     """
 
     def __init__(self, criteria: SqlFilterCriteriaBase):

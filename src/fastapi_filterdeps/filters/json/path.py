@@ -3,8 +3,8 @@ from typing import Any, Optional
 
 import sqlalchemy
 
-from fastapi_filterdeps.base import SimpleFilterCriteriaBase
-from fastapi_filterdeps.strategy.json_strategy import JsonStrategy
+from fastapi_filterdeps.core.base import SimpleFilterCriteriaBase
+from fastapi_filterdeps.filters.json.json_strategy import JsonStrategy
 
 
 class JsonPathOperation(str, Enum):
@@ -59,28 +59,27 @@ class JsonPathCriteria(SimpleFilterCriteriaBase):
         **query_params: Additional keyword arguments to be passed to FastAPI's Query.
 
     Example:
-        In a FastAPI app, filter items by a value inside a JSON field::
+        .. code-block:: python
 
-            from fastapi_filterdeps.base import create_combined_filter_dependency
-            from fastapi_filterdeps.json.strategy import JsonOperatorStrategy
-            from your_models import Item
+            from fastapi_filterdeps.filtersets import FilterSet
+            from fastapi_filterdeps.filters.json.path import JsonPathCriteria, JsonPathOperation
+            from fastapi_filterdeps.filters.json.json_strategy import JsonOperatorStrategy
+            from myapp.models import Item
 
-            item_filters = create_combined_filter_dependency(
-                JsonPathCriteria(
+            class ItemFilterSet(FilterSet):
+                theme = JsonPathCriteria(
                     field="data",
                     alias="theme",
                     json_path=["settings", "theme"],
-                    operation="eq",
+                    operation=JsonPathOperation.EQUALS,
                     strategy=JsonOperatorStrategy(),
                     description="Filter items by theme in settings."
-                ),
-                orm_model=Item,
-            )
+                )
+                class Meta:
+                    orm_model = Item
 
-            # @app.get("/items")
-            # def list_items(filters=Depends(item_filters)):
-            #     query = select(Item).where(*filters)
-            #     ...
+            # GET /items?theme=dark
+            # will filter for items where data->settings->theme == 'dark'.
     """
 
     def __init__(
@@ -125,6 +124,8 @@ class JsonPathCriteria(SimpleFilterCriteriaBase):
         self._validate_column_type(orm_model, self.field, sqlalchemy.JSON)
 
     def _filter_logic(self, orm_model, value):
+        if value is None:
+            return None
         model_field = getattr(orm_model, self.field)
         return self.strategy.build_path_expression(
             field=model_field,

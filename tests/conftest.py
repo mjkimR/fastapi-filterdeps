@@ -16,7 +16,7 @@ logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 
 sys.path.append(str(Path(__file__).parent.parent / "src"))
 
-from fastapi_filterdeps.filters.json.json_strategy import (
+from fastapi_filterdeps.filters.json.strategy import (
     JsonExtractStrategy,
     JsonOperatorStrategy,
     JsonStrategy,

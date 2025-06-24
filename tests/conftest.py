@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 import sys
 from typing import Callable
@@ -8,7 +7,7 @@ from fastapi import FastAPI, Depends
 from fastapi.testclient import TestClient
 import logging
 
-from tests.models import BasicModel, Vote, Review, Comment
+from tests.models import Post, Vote, Review, Comment
 from tests.db_sessions import *
 from tests.init_data import *
 
@@ -17,7 +16,7 @@ logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 
 sys.path.append(str(Path(__file__).parent.parent / "src"))
 
-from fastapi_filterdeps.json.strategy import (
+from fastapi_filterdeps.filters.json.json_strategy import (
     JsonExtractStrategy,
     JsonOperatorStrategy,
     JsonStrategy,
@@ -101,14 +100,14 @@ class BaseFilterTest:
 
         for data in self.test_data.values():
             db_session.add_all(data)
-        db_session.commit()
+            db_session.commit()
 
         yield
 
         db_session.query(Comment).delete()
         db_session.query(Review).delete()
         db_session.query(Vote).delete()
-        db_session.query(BasicModel).delete()
+        db_session.query(Post).delete()
         db_session.commit()
 
     def setup_filter(self, filter_deps: Callable):
@@ -116,7 +115,7 @@ class BaseFilterTest:
 
         @self.app.get("/test-items")
         async def test_endpoint(filters=Depends(filter_deps)):
-            stmt = select(BasicModel).where(*filters)
+            stmt = select(Post).where(*filters)
             result = self.session.execute(stmt).scalars().all()
             return result
 

@@ -1,23 +1,25 @@
-from fastapi_filterdeps.base import create_combined_filter_dependency
-from fastapi_filterdeps.simple.order import (
+from fastapi_filterdeps.filters.column.order import (
     OrderCriteria,
     OrderType,
 )
+from fastapi_filterdeps.filtersets import FilterSet
 from tests.conftest import BaseFilterTest
-from tests.models import BasicModel
+from tests.models import Post
 
 
 class TestOrderCriteria(BaseFilterTest):
     def test_filter_max_global(self):
-        filter_deps = create_combined_filter_dependency(
-            OrderCriteria(
+        class TestFilerSet(FilterSet):
+            class Meta:
+                orm_model = Post
+
+            count_max = OrderCriteria(
                 field="count",
                 order_type=OrderType.MAX,
-            ),
-            orm_model=BasicModel,
-        )
-        self.setup_filter(filter_deps=filter_deps)
-        response = self.client.get("/test-items")
+            )
+
+        self.setup_filter(filter_deps=TestFilerSet)
+        response = self.client.get("/test-items", params={"count_max": "true"})
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 1
@@ -25,14 +27,16 @@ class TestOrderCriteria(BaseFilterTest):
         assert data[0]["count"] == max_count
 
     def test_filter_min_global(self):
-        filter_deps = create_combined_filter_dependency(
-            OrderCriteria(
+        class TestFilerSet(FilterSet):
+            class Meta:
+                orm_model = Post
+
+            count_min = OrderCriteria(
                 field="count",
                 order_type=OrderType.MIN,
-            ),
-            orm_model=BasicModel,
-        )
-        self.setup_filter(filter_deps=filter_deps)
+            )
+
+        self.setup_filter(filter_deps=TestFilerSet)
         response = self.client.get("/test-items")
         assert response.status_code == 200
         data = response.json()
@@ -41,16 +45,18 @@ class TestOrderCriteria(BaseFilterTest):
         assert data[0]["count"] == min_count
 
     def test_filter_max_partitioned(self):
-        filter_deps = create_combined_filter_dependency(
-            OrderCriteria(
+        class TestFilerSet(FilterSet):
+            class Meta:
+                orm_model = Post
+
+            count_max = OrderCriteria(
                 field="count",
                 partition_by=["category"],
                 order_type=OrderType.MAX,
-            ),
-            orm_model=BasicModel,
-        )
-        self.setup_filter(filter_deps=filter_deps)
-        response = self.client.get("/test-items")
+            )
+
+        self.setup_filter(filter_deps=TestFilerSet)
+        response = self.client.get("/test-items", params={"count_max": "true"})
         assert response.status_code == 200
         data = response.json()
 
@@ -64,16 +70,18 @@ class TestOrderCriteria(BaseFilterTest):
                 assert item["count"] <= categories[category]
 
     def test_filter_min_partitioned(self):
-        filter_deps = create_combined_filter_dependency(
-            OrderCriteria(
+        class TestFilerSet(FilterSet):
+            class Meta:
+                orm_model = Post
+
+            count_min = OrderCriteria(
                 field="count",
                 partition_by=["category"],
                 order_type=OrderType.MIN,
-            ),
-            orm_model=BasicModel,
-        )
-        self.setup_filter(filter_deps=filter_deps)
-        response = self.client.get("/test-items")
+            )
+
+        self.setup_filter(filter_deps=TestFilerSet)
+        response = self.client.get("/test-items", params={"count_min": "true"})
         assert response.status_code == 200
         data = response.json()
 
@@ -87,14 +95,16 @@ class TestOrderCriteria(BaseFilterTest):
                 assert item["count"] >= categories[category]
 
     def test_filter_disabled(self):
-        filter_deps = create_combined_filter_dependency(
-            OrderCriteria(
+        class TestFilerSet(FilterSet):
+            class Meta:
+                orm_model = Post
+
+            count_max = OrderCriteria(
                 field="count",
                 order_type=OrderType.MAX,
-            ),
-            orm_model=BasicModel,
-        )
-        self.setup_filter(filter_deps=filter_deps)
+            )
+
+        self.setup_filter(filter_deps=TestFilerSet)
         response = self.client.get("/test-items", params={"count_max": "false"})
         assert response.status_code == 200
         assert (

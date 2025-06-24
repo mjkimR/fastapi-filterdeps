@@ -1,9 +1,9 @@
-from fastapi_filterdeps.base import create_combined_filter_dependency
-from fastapi_filterdeps.simple.binary import BinaryCriteria, BinaryFilterType
-from fastapi_filterdeps.simple.numeric import NumericCriteria, NumericFilterType
-from fastapi_filterdeps.simple.string import StringCriteria, StringMatchType
+from fastapi_filterdeps.filters.column.binary import BinaryCriteria, BinaryFilterType
+from fastapi_filterdeps.filters.column.numeric import NumericCriteria, NumericFilterType
+from fastapi_filterdeps.filters.column.string import StringCriteria, StringMatchType
+from fastapi_filterdeps.filtersets import FilterSet
 from tests.conftest import BaseFilterTest
-from tests.models import BasicModel
+from tests.models import Post
 
 
 class TestCombineCriteria(BaseFilterTest):
@@ -22,10 +22,14 @@ class TestCombineCriteria(BaseFilterTest):
 
         # Combine them with AND operator
         combined_filter = category_filter & active_filter
-        filter_deps = create_combined_filter_dependency(
-            combined_filter, orm_model=BasicModel
-        )
-        self.setup_filter(filter_deps=filter_deps)
+
+        class TestFilerSet(FilterSet):
+            class Meta:
+                orm_model = Post
+
+            filter = combined_filter
+
+        self.setup_filter(filter_deps=TestFilerSet)
 
         # Act
         response = self.client.get(
@@ -57,10 +61,14 @@ class TestCombineCriteria(BaseFilterTest):
 
         # Combine them with OR operator
         combined_filter = category_filter | count_filter
-        filter_deps = create_combined_filter_dependency(
-            combined_filter, orm_model=BasicModel
-        )
-        self.setup_filter(filter_deps=filter_deps)
+
+        class TestFilerSet(FilterSet):
+            class Meta:
+                orm_model = Post
+
+            filter = combined_filter
+
+        self.setup_filter(filter_deps=TestFilerSet)
 
         # Act
         response = self.client.get(
@@ -95,10 +103,14 @@ class TestCombineCriteria(BaseFilterTest):
 
         # Chain multiple AND operators
         combined_filter = category_filter & count_filter & inactive_filter
-        filter_deps = create_combined_filter_dependency(
-            combined_filter, orm_model=BasicModel
-        )
-        self.setup_filter(filter_deps=filter_deps)
+
+        class TestFilerSet(FilterSet):
+            class Meta:
+                orm_model = Post
+
+            filter = combined_filter
+
+        self.setup_filter(filter_deps=TestFilerSet)
 
         # Act
         response = self.client.get(
@@ -128,10 +140,14 @@ class TestCombineCriteria(BaseFilterTest):
 
         # Create nested logic: active AND (B OR C)
         combined_filter = active_filter & (cat_b_filter | cat_c_filter)
-        filter_deps = create_combined_filter_dependency(
-            combined_filter, orm_model=BasicModel
-        )
-        self.setup_filter(filter_deps=filter_deps)
+
+        class TestFilerSet(FilterSet):
+            class Meta:
+                orm_model = Post
+
+            filter = combined_filter
+
+        self.setup_filter(filter_deps=TestFilerSet)
 
         # Act
         response = self.client.get(

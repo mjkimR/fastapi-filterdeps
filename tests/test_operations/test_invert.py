@@ -1,8 +1,8 @@
-from fastapi_filterdeps.base import create_combined_filter_dependency
-from fastapi_filterdeps.simple.numeric import NumericCriteria, NumericFilterType
-from fastapi_filterdeps.simple.string import StringCriteria, StringMatchType
+from fastapi_filterdeps.filters.column.numeric import NumericCriteria, NumericFilterType
+from fastapi_filterdeps.filters.column.string import StringCriteria, StringMatchType
+from fastapi_filterdeps.filtersets import FilterSet
 from tests.conftest import BaseFilterTest
-from tests.models import BasicModel
+from tests.models import Post
 
 
 class TestInvertCriteria(BaseFilterTest):
@@ -11,16 +11,17 @@ class TestInvertCriteria(BaseFilterTest):
         Tests NOT logic on a string filter.
         It should return all items where the name is NOT 'Item 1'.
         """
-        # Define a standard string filter
         name_filter = StringCriteria(
             field="name", alias="name", match_type=StringMatchType.EXACT
         )
 
-        # Create the dependency with the inverted filter
-        filter_deps = create_combined_filter_dependency(
-            ~name_filter, orm_model=BasicModel
-        )
-        self.setup_filter(filter_deps=filter_deps)
+        class TestFilerSet(FilterSet):
+            class Meta:
+                orm_model = Post
+
+            name = ~name_filter
+
+        self.setup_filter(filter_deps=TestFilerSet)
 
         # Act
         response = self.client.get("/test-items", params={"name": "Item 1"})
@@ -36,7 +37,6 @@ class TestInvertCriteria(BaseFilterTest):
         Tests NOT logic on a numeric filter.
         It should return all items with a count LESS THAN 20.
         """
-        # Define a numeric filter for count >= 20
         count_filter = NumericCriteria(
             field="count",
             alias="min_count",
@@ -44,11 +44,13 @@ class TestInvertCriteria(BaseFilterTest):
             operator=NumericFilterType.GTE,
         )
 
-        # Create the dependency with the inverted filter
-        filter_deps = create_combined_filter_dependency(
-            ~count_filter, orm_model=BasicModel
-        )
-        self.setup_filter(filter_deps=filter_deps)
+        class TestFilerSet(FilterSet):
+            class Meta:
+                orm_model = Post
+
+            min_count = ~count_filter
+
+        self.setup_filter(filter_deps=TestFilerSet)
 
         # Act
         response = self.client.get("/test-items", params={"min_count": "20"})
@@ -70,10 +72,14 @@ class TestInvertCriteria(BaseFilterTest):
             numeric_type=int,
             operator=NumericFilterType.GTE,
         )
-        filter_deps = create_combined_filter_dependency(
-            ~count_filter, orm_model=BasicModel
-        )
-        self.setup_filter(filter_deps=filter_deps)
+
+        class TestFilerSet(FilterSet):
+            class Meta:
+                orm_model = Post
+
+            min_count = ~count_filter
+
+        self.setup_filter(filter_deps=TestFilerSet)
 
         # Act: Make a request without the 'min_count' param
         response = self.client.get("/test-items")

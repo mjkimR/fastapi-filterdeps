@@ -6,7 +6,7 @@ Provides a single function to build and optionally insert all test data for all 
 from datetime import datetime, timedelta, UTC
 
 import pytest
-from tests.models import BasicModel, Comment, Vote, Review
+from tests.models import Post, Comment, Vote, Review
 
 
 @pytest.fixture(scope="function")
@@ -14,7 +14,7 @@ def datasets():
     """Returns a dict of lists of model instances for all test models."""
     now = datetime.now(UTC)
     items = [
-        BasicModel(
+        Post(
             id=1,
             name="Item 1",
             category="A",
@@ -33,7 +33,7 @@ def datasets():
             },
             created_at=now - timedelta(days=10),
         ),
-        BasicModel(
+        Post(
             id=2,
             name="Item 2",
             category="A",
@@ -44,7 +44,7 @@ def datasets():
             detail={"settings": {"theme": "dark", "notifications": True}},
             created_at=now - timedelta(days=5),
         ),
-        BasicModel(
+        Post(
             id=3,
             name="Item 3",
             category="B",
@@ -60,7 +60,7 @@ def datasets():
             },
             created_at=now - timedelta(days=1),
         ),
-        BasicModel(
+        Post(
             id=4,
             name="Item 4",
             category="C",
@@ -71,7 +71,7 @@ def datasets():
             detail={"settings": {"theme": "blue"}},
             created_at=now,
         ),
-        BasicModel(
+        Post(
             id=5,
             name="Item 5",
             category="C",

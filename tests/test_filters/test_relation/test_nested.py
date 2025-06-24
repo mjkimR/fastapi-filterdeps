@@ -1,17 +1,21 @@
 from sqlalchemy import func
-from fastapi_filterdeps.base import create_combined_filter_dependency
-from fastapi_filterdeps.complex.having import GroupByHavingCriteria
-from fastapi_filterdeps.complex.join_nested import JoinNestedFilterCriteria
-from fastapi_filterdeps.simple.binary import BinaryCriteria, BinaryFilterType
-from tests.conftest import BaseFilterTest, BasicModel
-from tests.models import BasicModel, Comment, Vote
+from fastapi_filterdeps.filters.relation.having import GroupByHavingCriteria
+from fastapi_filterdeps.filters.relation.nested import JoinNestedFilterCriteria
+from fastapi_filterdeps.filters.column.binary import BinaryCriteria, BinaryFilterType
+from fastapi_filterdeps.filtersets import FilterSet
+from tests.conftest import BaseFilterTest, Post
+from tests.models import Post, Comment, Vote
 
 
 class TestJoinNestedFilterCriteria(BaseFilterTest):
     def test_include_unrelated_false(self):
-        """Test filtering posts that have approved comments and exclude posts without comments"""
-        filter_deps = create_combined_filter_dependency(
-            JoinNestedFilterCriteria(
+        """Test filtering item that have approved comments and exclude item without comments"""
+
+        class TestFilerSet(FilterSet):
+            class Meta:
+                orm_model = Post
+
+            is_approved = JoinNestedFilterCriteria(
                 filter_criteria=[
                     BinaryCriteria(
                         field="is_approved",
@@ -19,23 +23,23 @@ class TestJoinNestedFilterCriteria(BaseFilterTest):
                         filter_type=BinaryFilterType.IS_TRUE,
                     )
                 ],
-                join_condition=BasicModel.id == Comment.post_id,
+                join_condition=Post.id == Comment.post_id,
                 join_model=Comment,
                 include_unrelated=False,
-            ),
-            orm_model=BasicModel,
-        )
+            )
 
-        self.setup_filter(filter_deps=filter_deps)
+        self.setup_filter(filter_deps=TestFilerSet)
         response = self.client.get("/test-items", params={"is_approved": "true"})
-
         assert response.status_code == 200
         data = response.json()
         assert len(data) > 0
 
     def test_nested_aggregate_filter(self):
-        filter_deps = create_combined_filter_dependency(
-            JoinNestedFilterCriteria(
+        class TestFilerSet(FilterSet):
+            class Meta:
+                orm_model = Post
+
+            avg_value_gt = JoinNestedFilterCriteria(
                 filter_criteria=[
                     GroupByHavingCriteria(
                         alias="avg_value_gt",
@@ -44,14 +48,12 @@ class TestJoinNestedFilterCriteria(BaseFilterTest):
                         group_by_cols=[Vote.post_id],
                     )
                 ],
-                join_condition=BasicModel.id == Vote.post_id,
+                join_condition=Post.id == Vote.post_id,
                 join_model=Vote,
                 include_unrelated=False,
-            ),
-            orm_model=BasicModel,
-        )
+            )
 
-        self.setup_filter(filter_deps=filter_deps)
+        self.setup_filter(filter_deps=TestFilerSet)
         response = self.client.get("/test-items", params={"avg_value_gt": 4.5})
         assert response.status_code == 200
         data = response.json()

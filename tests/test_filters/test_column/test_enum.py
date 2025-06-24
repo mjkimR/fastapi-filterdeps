@@ -1,13 +1,13 @@
 from enum import Enum
 
 import pytest
-from fastapi_filterdeps.base import create_combined_filter_dependency
-from fastapi_filterdeps.simple.enum import (
+from fastapi_filterdeps.filters.column.enum import (
     EnumCriteria,
     MultiEnumCriteria,
 )
+from fastapi_filterdeps.filtersets import FilterSet
 from tests.conftest import BaseFilterTest
-from tests.models import BasicModel
+from tests.models import Post
 
 
 class StatusType(str, Enum):
@@ -26,59 +26,67 @@ class TestEnumCriteria(BaseFilterTest):
         ],
     )
     def test_filter_enum(self, status_value):
-        filter_deps = create_combined_filter_dependency(
-            EnumCriteria(
+        class TestFilerSet(FilterSet):
+            class Meta:
+                orm_model = Post
+
+            status = EnumCriteria(
                 field="status",
                 alias="status",
                 enum_class=StatusType,
-            ),
-            orm_model=BasicModel,
-        )
-        self.setup_filter(filter_deps=filter_deps)
+            )
+
+        self.setup_filter(filter_deps=TestFilerSet)
         response = self.client.get("/test-items", params={"status": status_value.value})
         assert response.status_code == 200
         assert len(response.json()) > 0
         assert all(item["status"] == status_value.value for item in response.json())
 
     def test_filter_enum_none(self, datasets):
-        filter_deps = create_combined_filter_dependency(
-            EnumCriteria(
+        class TestFilerSet(FilterSet):
+            class Meta:
+                orm_model = Post
+
+            status = EnumCriteria(
                 field="status",
                 alias="status",
                 enum_class=StatusType,
-            ),
-            orm_model=BasicModel,
-        )
-        self.setup_filter(filter_deps=filter_deps)
+            )
+
+        self.setup_filter(filter_deps=TestFilerSet)
         response = self.client.get("/test-items")
         assert response.status_code == 200
         assert len(response.json()) == len(datasets["items"])
 
     def test_filter_enum_invalid(self):
-        filter_deps = create_combined_filter_dependency(
-            EnumCriteria(
+        class TestFilerSet(FilterSet):
+            class Meta:
+                orm_model = Post
+
+            status = EnumCriteria(
                 field="status",
                 alias="status",
                 enum_class=StatusType,
-            ),
-            orm_model=BasicModel,
-        )
-        self.setup_filter(filter_deps=filter_deps)
+            )
+
+        self.setup_filter(filter_deps=TestFilerSet)
         response = self.client.get("/test-items", params={"status": "invalid"})
         assert response.status_code == 422
 
 
 class TestMultiEnumCriteria(BaseFilterTest):
     def test_filter_enum_multiple(self):
-        filter_deps = create_combined_filter_dependency(
-            MultiEnumCriteria(
+        class TestFilerSet(FilterSet):
+            class Meta:
+                orm_model = Post
+
+            status = MultiEnumCriteria(
                 field="status",
                 alias="status",
                 enum_class=StatusType,
-            ),
-            orm_model=BasicModel,
-        )
-        self.setup_filter(filter_deps=filter_deps)
+            )
+
+        self.setup_filter(filter_deps=TestFilerSet)
         response = self.client.get(
             "/test-items", params={"status": ["active", "inactive"]}
         )
@@ -88,15 +96,17 @@ class TestMultiEnumCriteria(BaseFilterTest):
         assert {item["status"] for item in response.json()} == {"active", "inactive"}
 
     def test_filter_enum_empty_list(self, datasets):
-        filter_deps = create_combined_filter_dependency(
-            MultiEnumCriteria(
+        class TestFilerSet(FilterSet):
+            class Meta:
+                orm_model = Post
+
+            status = MultiEnumCriteria(
                 field="status",
                 alias="status",
                 enum_class=StatusType,
-            ),
-            orm_model=BasicModel,
-        )
-        self.setup_filter(filter_deps=filter_deps)
+            )
+
+        self.setup_filter(filter_deps=TestFilerSet)
         response = self.client.get("/test-items", params={"status": []})
         assert response.status_code == 200
         assert len(response.json()) == len(datasets["items"])

@@ -1,20 +1,23 @@
-from fastapi_filterdeps.base import create_combined_filter_dependency
-from fastapi_filterdeps.json.json_dict_tags import JsonDictTagsCriteria
-from tests.conftest import BaseFilterTest, BasicModel
+from fastapi_filterdeps.filters.json.tags import JsonDictTagsCriteria
+from fastapi_filterdeps.filtersets import FilterSet
+from tests.conftest import BaseFilterTest, Post
 
 
 class TestJsonDictTagsCriteria(BaseFilterTest):
     def test_filter_by_boolean_tag(self, json_strategy):
         """Test filtering by boolean tag existence."""
-        filter_deps = create_combined_filter_dependency(
-            JsonDictTagsCriteria(
-                field="detail",  # Use the JSON field name
+
+        class TestFilerSet(FilterSet):
+            class Meta:
+                orm_model = Post
+
+            tags = JsonDictTagsCriteria(
+                field="detail",
                 alias="tags",
                 strategy=json_strategy,
-            ),
-            orm_model=BasicModel,
-        )
-        self.setup_filter(filter_deps=filter_deps)
+            )
+
+        self.setup_filter(filter_deps=TestFilerSet)
 
         # Test single boolean tag
         response = self.client.get("/test-items", params={"tags": ["urgent"]})
@@ -25,15 +28,18 @@ class TestJsonDictTagsCriteria(BaseFilterTest):
 
     def test_filter_by_value_tag(self, json_strategy):
         """Test filtering by tag with specific value."""
-        filter_deps = create_combined_filter_dependency(
-            JsonDictTagsCriteria(
-                field="detail",  # Use the JSON field name
+
+        class TestFilerSet(FilterSet):
+            class Meta:
+                orm_model = Post
+
+            tags = JsonDictTagsCriteria(
+                field="detail",
                 alias="tags",
                 strategy=json_strategy,
-            ),
-            orm_model=BasicModel,
-        )
-        self.setup_filter(filter_deps=filter_deps)
+            )
+
+        self.setup_filter(filter_deps=TestFilerSet)
 
         # Test tag with value
         response = self.client.get("/test-items", params={"tags": ["language:en"]})
@@ -44,15 +50,18 @@ class TestJsonDictTagsCriteria(BaseFilterTest):
 
     def test_filter_by_multiple_tags(self, json_strategy):
         """Test filtering by multiple tags combination."""
-        filter_deps = create_combined_filter_dependency(
-            JsonDictTagsCriteria(
-                field="detail",  # Use the JSON field name
+
+        class TestFilerSet(FilterSet):
+            class Meta:
+                orm_model = Post
+
+            tags = JsonDictTagsCriteria(
+                field="detail",
                 alias="tags",
                 strategy=json_strategy,
-            ),
-            orm_model=BasicModel,
-        )
-        self.setup_filter(filter_deps=filter_deps)
+            )
+
+        self.setup_filter(filter_deps=TestFilerSet)
 
         # Test multiple tags
         response = self.client.get(

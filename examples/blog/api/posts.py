@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 
 from examples.blog.api.filters import CreatedAtFilterSet, TitleFilterSet
-from fastapi_filterdeps.core.decorators import for_filter
+from fastapi_filterdeps.core.decorators import filter_for
 from fastapi_filterdeps.filters.column.binary import BinaryCriteria, BinaryFilterType
 from fastapi_filterdeps.filters.column.enum import EnumCriteria, MultiEnumCriteria
 from fastapi_filterdeps.filters.column.numeric import (
@@ -23,7 +23,7 @@ from schemas import PostRead, PostCreate
 router = APIRouter(prefix="/posts", tags=["Posts"])
 
 
-@for_filter(
+@filter_for(
     field="view_count", description="Custom filter for view count", bound_type=bool
 )
 def custom_filter(orm_model, value):

@@ -1,7 +1,7 @@
 from fastapi_filterdeps.core.base import SimpleFilterCriteriaBase
 
 
-def for_filter(field, alias=None, description=None, bound_type=None, **query_params):
+def filter_for(field, alias=None, description=None, bound_type=None, **query_params):
     """
     Decorator to create a SimpleFilterCriteriaBase subclass from a filter logic function.
 

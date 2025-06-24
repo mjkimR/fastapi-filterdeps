@@ -4,7 +4,7 @@ from typing import Any, Optional
 import sqlalchemy
 
 from fastapi_filterdeps.core.base import SimpleFilterCriteriaBase
-from fastapi_filterdeps.filters.json.json_strategy import JsonStrategy
+from fastapi_filterdeps.filters.json.strategy import JsonStrategy
 
 
 class JsonPathOperation(str, Enum):

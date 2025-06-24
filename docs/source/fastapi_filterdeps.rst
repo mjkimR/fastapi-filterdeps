@@ -5,28 +5,19 @@ Subpackages
 -----------
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 3
 
-   fastapi_filterdeps.combinators
-   fastapi_filterdeps.generic
-   fastapi_filterdeps.join
-   fastapi_filterdeps.json
+   fastapi_filterdeps.core
+   fastapi_filterdeps.filters
+   fastapi_filterdeps.operations
 
 Submodules
 ----------
 
-fastapi\_filterdeps.base module
--------------------------------
-
-.. automodule:: fastapi_filterdeps.base
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-fastapi\_filterdeps.exceptions module
+fastapi\_filterdeps.filtersets module
 -------------------------------------
 
-.. automodule:: fastapi_filterdeps.exceptions
+.. automodule:: fastapi_filterdeps.filtersets
    :members:
    :show-inheritance:
    :undoc-members:

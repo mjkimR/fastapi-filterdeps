@@ -369,9 +369,15 @@ class SimpleFilterCriteriaBase(SqlFilterCriteriaBase):
         """
         self._validation_logic(orm_model)
         if self.alias is None:
-            raise ConfigurationError("")
+            raise ConfigurationError(
+                f"Filter criteria for field '{self.field}' is missing an 'alias'. "
+                "Please provide an alias (query parameter name) for this filter."
+            )
         if self.bound_type is None:
-            raise ConfigurationError("")
+            raise ConfigurationError(
+                f"Filter criteria for field '{self.field}' is missing a 'bound_type'. "
+                "Please specify the type to bind the query parameter to (e.g., str, int)."
+            )
         description = self.description or self._get_default_description()
 
         self._validate_field_exists(orm_model, self.field)

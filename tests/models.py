@@ -1,6 +1,6 @@
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy import Integer, String, DateTime, Boolean, JSON, ForeignKey
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 
 
 class Base(DeclarativeBase):
@@ -15,7 +15,7 @@ class Post(Base):
     category: Mapped[str] = mapped_column(String(50))
     value: Mapped[int] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(UTC)
+        DateTime, default=lambda: datetime.now(timezone.utc)
     )
 
     count: Mapped[int] = mapped_column(Integer, default=0)

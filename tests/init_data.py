@@ -3,7 +3,7 @@ Centralized test data initialization for all DB backends.
 Provides a single function to build and optionally insert all test data for all models.
 """
 
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from tests.models import Post, Comment, Vote, Review
@@ -12,7 +12,7 @@ from tests.models import Post, Comment, Vote, Review
 @pytest.fixture(scope="function")
 def datasets():
     """Returns a dict of lists of model instances for all test models."""
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     items = [
         Post(
             id=1,

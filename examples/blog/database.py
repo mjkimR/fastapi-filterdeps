@@ -30,9 +30,9 @@ def get_db():
 def init_db():
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
-    from datetime import datetime, UTC, timedelta
+    from datetime import datetime, timedelta, timezone
 
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     users = [
         User(
             id=1,

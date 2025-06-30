@@ -1,4 +1,4 @@
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy import String, Integer, Text, ForeignKey, DateTime, Boolean
@@ -17,7 +17,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(100), unique=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(UTC)
+        DateTime, default=lambda: datetime.now(timezone.utc)
     )
 
 
@@ -38,7 +38,7 @@ class Post(Base):
     view_count: Mapped[int] = mapped_column(Integer, default=0)
     status: Mapped[str] = mapped_column(String(20), default=PostStatus.DRAFT.value)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(UTC)
+        DateTime, default=lambda: datetime.now(timezone.utc)
     )
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
@@ -52,7 +52,7 @@ class Comment(Base):
     author_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     is_approved: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(UTC)
+        DateTime, default=lambda: datetime.now(timezone.utc)
     )
 
 

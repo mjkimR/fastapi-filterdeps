@@ -1,5 +1,5 @@
 import pytest
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
 from dateutil.relativedelta import relativedelta
 import operator
 import re
@@ -16,112 +16,75 @@ from tests.models import Post
 class TestRelativeTimeCriteria(BaseFilterTest):
     """Test suite for the new string-based RelativeTimeCriteria."""
 
-    # --- Tests for RANGE_TO_NOW ---
     @pytest.mark.parametrize(
-        "input_val, expected_delta",
+        "match_type,input_val,expected_delta",
         [
-            ("-3d", timedelta(days=-3)),
-            ("-2w", timedelta(weeks=-2)),
-            ("-1m", relativedelta(months=-1)),
-            ("-1y", relativedelta(years=-1)),
+            (RelativeTimeMatchType.RANGE_TO_NOW, "-3d", timedelta(days=-3)),
+            (RelativeTimeMatchType.RANGE_TO_NOW, "-2w", timedelta(weeks=-2)),
+            (RelativeTimeMatchType.RANGE_TO_NOW, "-1m", relativedelta(months=-1)),
+            (RelativeTimeMatchType.RANGE_TO_NOW, "-1y", relativedelta(years=-1)),
+            (RelativeTimeMatchType.BEFORE, "-3d", timedelta(days=-3)),
+            (RelativeTimeMatchType.AFTER, "-8d", timedelta(days=-8)),
         ],
     )
-    @pytest.mark.parametrize("include_bound", [True, False])
-    def test_range_to_now(self, input_val, expected_delta, include_bound):
-        """Tests RANGE_TO_NOW with various units and bounds."""
-
+    @pytest.mark.parametrize(
+        "include_bound,op_start,op_end,op",
+        [
+            (True, operator.ge, operator.le, operator.le),
+            (False, operator.gt, operator.lt, operator.lt),
+        ],
+    )
+    def test_relative_time_all_types(
+        self, match_type, input_val, expected_delta, include_bound, op_start, op_end, op
+    ):
         class TestFilterSet(FilterSet):
             class Meta:
                 orm_model = Post
 
-            created_range = RelativeTimeCriteria(
+            created = RelativeTimeCriteria(
                 field="created_at",
-                match_type=RelativeTimeMatchType.RANGE_TO_NOW,
+                match_type=match_type,
                 include_bound=include_bound,
             )
 
         self.setup_filter(filter_deps=TestFilterSet)
-        response = self.client.get("/test-items", params={"created_range": input_val})
+        response = self.client.get("/test-items", params={"created": input_val})
         assert response.status_code == 200
         data = response.json()
-
-        op_start = operator.ge if include_bound else operator.gt
-        op_end = operator.le if include_bound else operator.lt
-
-        now = datetime.now(UTC)
-        match = re.match(r"([+-]?)(\d+)", input_val)
-        offset = int(f"{match.group(1)}{match.group(2)}")
-        target_date = now + expected_delta
-
-        start_date, end_date = (target_date, now) if offset <= 0 else (now, target_date)
-
-        assert len(data) > 0, f"No results for input {input_val}"
-        for item in data:
-            item_time = datetime.fromisoformat(item["created_at"]).replace(tzinfo=UTC)
-            if offset <= 0:
-                assert op_start(item_time, start_date)
-            else:
-                assert op_end(item_time, end_date)
-
-    # --- Tests for BEFORE ---
-    @pytest.mark.parametrize("include_bound", [True, False])
-    def test_before(self, include_bound):
-        """Tests BEFORE match type with and without inclusive bounds."""
-
-        class TestFilterSet(FilterSet):
-            class Meta:
-                orm_model = Post
-
-            created_before = RelativeTimeCriteria(
-                field="created_at",
-                match_type=RelativeTimeMatchType.BEFORE,
-                include_bound=include_bound,
+        now = datetime.now(timezone.utc)
+        if match_type == RelativeTimeMatchType.RANGE_TO_NOW:
+            match = re.match(r"([+-]?)(\d+)", input_val)
+            offset = int(f"{match.group(1)}{match.group(2)}")
+            target_date = now + expected_delta
+            start_date, end_date = (
+                (target_date, now) if offset <= 0 else (now, target_date)
             )
+            assert len(data) > 0, f"No results for input {input_val}"
+            for item in data:
+                item_time = datetime.fromisoformat(item["created_at"]).replace(
+                    tzinfo=timezone.utc
+                )
+                if offset <= 0:
+                    assert op_start(item_time, start_date)
+                else:
+                    assert op_end(item_time, end_date)
+        elif match_type == RelativeTimeMatchType.BEFORE:
+            target_date = now + expected_delta
+            assert len(data) > 0
+            for item in data:
+                item_time = datetime.fromisoformat(item["created_at"]).replace(
+                    tzinfo=timezone.utc
+                )
+                assert op(item_time, target_date)
+        elif match_type == RelativeTimeMatchType.AFTER:
+            target_date = now + expected_delta
+            assert len(data) > 0
+            for item in data:
+                item_time = datetime.fromisoformat(item["created_at"]).replace(
+                    tzinfo=timezone.utc
+                )
+                assert op_start(item_time, target_date)
 
-        self.setup_filter(filter_deps=TestFilterSet)
-        response = self.client.get("/test-items", params={"created_before": "-3d"})
-        assert response.status_code == 200
-        data = response.json()
-
-        now = datetime.now(UTC)
-        op = operator.le if include_bound else operator.lt
-        target_date = now + timedelta(days=-3)
-
-        assert len(data) > 0
-        for item in data:
-            item_time = datetime.fromisoformat(item["created_at"]).replace(tzinfo=UTC)
-            assert op(item_time, target_date)
-
-    # --- Tests for AFTER ---
-    @pytest.mark.parametrize("include_bound", [True, False])
-    def test_after(self, include_bound):
-        """Tests AFTER match type with and without inclusive bounds."""
-
-        class TestFilterSet(FilterSet):
-            class Meta:
-                orm_model = Post
-
-            created_after = RelativeTimeCriteria(
-                field="created_at",
-                match_type=RelativeTimeMatchType.AFTER,
-                include_bound=include_bound,
-            )
-
-        self.setup_filter(filter_deps=TestFilterSet)
-        response = self.client.get("/test-items", params={"created_after": "-8d"})
-        assert response.status_code == 200
-        data = response.json()
-
-        now = datetime.now(UTC)
-        op = operator.ge if include_bound else operator.gt
-        target_date = now + timedelta(days=-8)
-
-        assert len(data) > 0
-        for item in data:
-            item_time = datetime.fromisoformat(item["created_at"]).replace(tzinfo=UTC)
-            assert op(item_time, target_date)
-
-    # --- Edge case and validation tests ---
     def test_no_input_returns_all(self):
         """Tests that if no query parameter is provided, all items are returned."""
 

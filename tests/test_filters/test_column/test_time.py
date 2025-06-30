@@ -1,4 +1,4 @@
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 import pytest
 from fastapi_filterdeps.filters.column.time import TimeCriteria, TimeMatchType
 from fastapi_filterdeps.filtersets import FilterSet
@@ -41,7 +41,7 @@ class TestTimeCriteria(BaseFilterTest):
 
         # Select a reference time from the test data for comparison
         reference_time = self.test_data["items"][2].created_at
-        reference_time = reference_time.replace(tzinfo=UTC)
+        reference_time = reference_time.replace(tzinfo=timezone.utc)
 
         # Make a request with the reference time
         response = self.client.get(
@@ -53,7 +53,7 @@ class TestTimeCriteria(BaseFilterTest):
 
         # Assert that all returned items satisfy the condition
         for item in data:
-            item_time = datetime.fromisoformat(item["created_at"]).replace(tzinfo=UTC)
+            item_time = datetime.fromisoformat(item["created_at"]).replace(tzinfo=timezone.utc)
             assert operator(item_time, reference_time)
 
     def test_filter_time_no_value(self):

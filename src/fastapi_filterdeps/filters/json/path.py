@@ -63,7 +63,7 @@ class JsonPathCriteria(SimpleFilterCriteriaBase):
 
             from fastapi_filterdeps.filtersets import FilterSet
             from fastapi_filterdeps.filters.json.path import JsonPathCriteria, JsonPathOperation
-            from fastapi_filterdeps.filters.json.json_strategy import JsonOperatorStrategy
+            from fastapi_filterdeps.filters.json.strategy import JsonOperatorStrategy
             from myapp.models import Item
 
             class ItemFilterSet(FilterSet):

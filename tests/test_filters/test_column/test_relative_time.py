@@ -8,7 +8,7 @@ from fastapi_filterdeps.filters.column.relative_time import (
     RelativeTimeCriteria,
     RelativeTimeMatchType,
 )
-from fastapi_filterdeps.filtersets import FilterSet
+from fastapi_filterdeps import FilterSet
 from tests.conftest import BaseFilterTest
 from tests.models import Post
 

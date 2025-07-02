@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
-from fastapi_filterdeps.filtersets import FilterSet
+from fastapi_filterdeps import FilterSet
 from fastapi_filterdeps.filters.column.binary import BinaryCriteria, BinaryFilterType
 from fastapi_filterdeps.filters.column.time import TimeCriteria, TimeMatchType
 from fastapi_filterdeps.filters.column.string import (

@@ -7,7 +7,7 @@ Submodules
 fastapi\_filterdeps.filters.json.json\_strategy module
 ------------------------------------------------------
 
-.. automodule:: fastapi_filterdeps.filters.json.json_strategy
+.. automodule:: fastapi_filterdeps.filters.json.strategy
    :members:
    :show-inheritance:
    :undoc-members:

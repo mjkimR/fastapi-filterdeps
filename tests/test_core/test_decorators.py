@@ -1,6 +1,4 @@
-from fastapi_filterdeps.core.decorators import filter_for
-from fastapi_filterdeps.core.base import SimpleFilterCriteriaBase
-import pytest
+from fastapi_filterdeps import filter_for, SimpleFilterCriteriaBase
 
 
 def test_filter_for_decorator():

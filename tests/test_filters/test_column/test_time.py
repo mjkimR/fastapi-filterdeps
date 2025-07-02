@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 import pytest
 from fastapi_filterdeps.filters.column.time import TimeCriteria, TimeMatchType
-from fastapi_filterdeps.filtersets import FilterSet
+from fastapi_filterdeps import FilterSet
 from tests.conftest import BaseFilterTest
 from tests.models import Post
 

@@ -1,4 +1,4 @@
-from fastapi_filterdeps.filtersets import FilterSet
+from fastapi_filterdeps import FilterSet
 from fastapi_filterdeps.filters.column.regex import RegexCriteria
 from fastapi_filterdeps.filters.column.string import (
     StringCriteria,

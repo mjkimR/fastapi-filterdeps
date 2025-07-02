@@ -3,7 +3,7 @@ from fastapi_filterdeps.filters.column.string import (
     StringSetCriteria,
     StringMatchType,
 )
-from fastapi_filterdeps.filtersets import FilterSet
+from fastapi_filterdeps import FilterSet
 from tests.conftest import BaseFilterTest
 from tests.models import Post
 import pytest

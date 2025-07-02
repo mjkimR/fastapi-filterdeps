@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 
 from examples.blog.api.filters import CreatedAtFilterSet, TitleFilterSet
-from fastapi_filterdeps.core.decorators import filter_for
+from fastapi_filterdeps import filter_for, order_by_params
 from fastapi_filterdeps.filters.column.binary import BinaryCriteria, BinaryFilterType
 from fastapi_filterdeps.filters.column.enum import EnumCriteria, MultiEnumCriteria
 from fastapi_filterdeps.filters.column.numeric import (
@@ -13,7 +13,6 @@ from fastapi_filterdeps.filters.column.numeric import (
 )
 from fastapi_filterdeps.filters.relation.having import GroupByHavingCriteria
 from fastapi_filterdeps.filters.relation.exists import JoinExistsCriteria
-from fastapi_filterdeps.order_by import order_by_params
 
 from database import get_db
 from models import Post, User, Comment, PostStatus, Vote

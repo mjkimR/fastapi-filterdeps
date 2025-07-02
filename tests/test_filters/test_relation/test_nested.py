@@ -2,7 +2,7 @@ from sqlalchemy import func
 from fastapi_filterdeps.filters.relation.having import GroupByHavingCriteria
 from fastapi_filterdeps.filters.relation.nested import JoinNestedFilterCriteria
 from fastapi_filterdeps.filters.column.binary import BinaryCriteria, BinaryFilterType
-from fastapi_filterdeps.filtersets import FilterSet
+from fastapi_filterdeps import FilterSet
 from tests.conftest import BaseFilterTest, Post
 from tests.models import Post, Comment, Vote
 

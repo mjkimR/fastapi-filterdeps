@@ -1,5 +1,5 @@
 from fastapi_filterdeps.filters.json.tags import JsonDictTagsCriteria
-from fastapi_filterdeps.filtersets import FilterSet
+from fastapi_filterdeps import FilterSet
 from tests.conftest import BaseFilterTest, Post
 
 

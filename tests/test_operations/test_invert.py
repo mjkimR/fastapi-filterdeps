@@ -1,6 +1,6 @@
 from fastapi_filterdeps.filters.column.numeric import NumericCriteria, NumericFilterType
 from fastapi_filterdeps.filters.column.string import StringCriteria, StringMatchType
-from fastapi_filterdeps.filtersets import FilterSet
+from fastapi_filterdeps import FilterSet
 from tests.conftest import BaseFilterTest
 from tests.models import Post
 

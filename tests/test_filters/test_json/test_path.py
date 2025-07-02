@@ -1,5 +1,5 @@
 from fastapi_filterdeps.filters.json.path import JsonPathCriteria, JsonPathOperation
-from fastapi_filterdeps.filtersets import FilterSet
+from fastapi_filterdeps import FilterSet
 from tests.conftest import BaseFilterTest, Post
 
 

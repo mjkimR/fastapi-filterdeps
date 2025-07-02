@@ -36,7 +36,7 @@ class JsonDictTagsCriteria(SimpleFilterCriteriaBase):
 
             from fastapi_filterdeps.filtersets import FilterSet
             from fastapi_filterdeps.filters.json.tags import JsonDictTagsCriteria
-            from fastapi_filterdeps.filters.json.json_strategy import JsonOperatorStrategy
+            from fastapi_filterdeps.filters.json.strategy import JsonOperatorStrategy
             from myapp.models import BasicModel
 
             class BasicModelFilterSet(FilterSet):

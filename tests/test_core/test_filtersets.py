@@ -1,5 +1,5 @@
 import pytest
-from fastapi_filterdeps.filtersets import FilterSet
+from fastapi_filterdeps import FilterSet
 from fastapi_filterdeps.filters.column.string import StringCriteria
 from fastapi_filterdeps.core.exceptions import ConfigurationError
 from tests.models import Post

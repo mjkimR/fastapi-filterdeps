@@ -3,7 +3,7 @@ Core filter criteria base classes for FastAPI + SQLAlchemy filtering.
 
 This module provides the abstract base classes for building filter criteria, which are the building blocks for declarative filtering in FastAPI APIs using SQLAlchemy models.
 
-End users should primarily use these classes by composing them into a `FilterSet` (see `fastapi_filterdeps.filtersets.FilterSet`). Each filter criterion describes how a single field or relationship should be filtered, and can be combined using logical operators (&, |, ~) for advanced logic.
+End users should primarily use these classes by composing them into a `FilterSet` (see `fastapi_filterdeps.filtersets.FilterSet`). Each filter criterion describes how a single field or relationship should be filtered, and can be combined using logical operators (`&`, `|`, `~`) for advanced logic.
 
 Advanced usage:
     You can also combine filter criteria directly using logical operators, and use `create_combined_filter_dependency` to build a dependency, but this is only recommended for advanced scenarios.

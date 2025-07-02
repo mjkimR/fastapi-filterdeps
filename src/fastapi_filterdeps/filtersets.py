@@ -151,13 +151,15 @@ class FilterSet(metaclass=FilterSetMeta):
     Subclass this and declare filter criteria as class attributes. For reusable filter sets, set `abstract = True` and inherit from them. Concrete filter sets must define an inner `Meta` class with an `orm_model` attribute specifying the SQLAlchemy model.
 
     Example:
-        class MyFilterSet(FilterSet):
-            my_field = StringCriteria(...)
-            class Meta:
-                orm_model = MyModel
+
+        .. code-block:: python
+
+            class MyFilterSet(FilterSet):
+                my_field = StringCriteria(...)
+                class Meta:
+                    orm_model = MyModel
 
     Attributes:
-        abstract (bool): If True, this filter set is abstract and cannot be instantiated directly.
         _dependency_func (Callable): The FastAPI dependency function for this filter set.
     """
 

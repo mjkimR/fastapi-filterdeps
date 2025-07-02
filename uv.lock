@@ -219,7 +219,7 @@ examples = [
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.115.14" },
-    { name = "python-dateutil", specifier = "==2.4.0" },
+    { name = "python-dateutil", specifier = ">=2.4.0" },
     { name = "sqlalchemy", specifier = ">=2.0.0" },
 ]
 

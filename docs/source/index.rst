@@ -27,5 +27,4 @@ API Reference
    :maxdepth: 2
    :caption: Contents:
 
-   fastapi_filterdeps
-
+   api

@@ -12,6 +12,10 @@ author = "minjae.kim"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str((Path(__file__).resolve().parents[2] / "src")))
 
 extensions = ["sphinx.ext.autodoc", "sphinx.ext.napoleon"]
 
@@ -21,7 +25,7 @@ autodoc_default_options = {
     "undoc-members": True,
     "private-members": False,
     "special-members": False,
-    "inherited-members": True,
+    "inherited-members": False,
     "show-inheritance": True,
 }
 autoclass_content = "both"  # class docstring + __init__ docstring
@@ -48,9 +52,3 @@ add_module_names = False
 
 html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]
-
-
-from pathlib import Path
-import sys
-
-sys.path.insert(0, str((Path(__file__).resolve().parents[2] / "src")))

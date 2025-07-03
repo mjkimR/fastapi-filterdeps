@@ -1,28 +1,57 @@
+# pyproject.toml
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "fastapi-filterdeps"
 version = "0.1.0"
-description = "Add your description here"
+authors = [
+  { name="minjae.kim", email="kwj4479@gmail.com" },
+]
+description = "A library for advanced, declarative filtering dependencies in FastAPI with SQLAlchemy."
 readme = "README.md"
 requires-python = ">=3.10"
+license = { file="LICENSE" }
+keywords = ["fastapi", "sqlalchemy", "filter", "dependency-injection", "pydantic", "api"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Framework :: FastAPI",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Internet :: WWW/HTTP :: WSGI :: Application",
+]
 dependencies = [
-    "fastapi>=0.115.14",
+    "fastapi>=0.100.0",
     "python-dateutil>=2.4.0",
     "sqlalchemy>=2.0.0",
 ]
 
-[dependency-groups]
+[project.urls]
+Homepage = "https://github.com/mjkimr/fastapi-filterdeps"   
+Repository = "https://github.com/mjkimr/fastapi-filterdeps"
+"Bug Tracker" = "https://github.com/mjkimr/fastapi-filterdeps/issues"
+
+[project.optional-dependencies]
 dev = [
-    "httpx>=0.28.1",
-    "psycopg2>=2.9.10",
-    "pytest>=8.4.1",
-    "pytest-asyncio>=1.0.0",
-    "testcontainers>=4.10.0",
+    "httpx>=0.27.0",
+    "psycopg2-binary",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "testcontainers>=4.0.0",
+    "build>=1.2.2.post1",
 ]
 docs = [
-    "sphinx>=8.1.3",
-    "sphinx-rtd-theme>=3.0.2",
+    "sphinx>=7.0.0",
+    "sphinx-rtd-theme>=2.0.0",
     "sphinxcontrib-napoleon>=0.7",
 ]
 examples = [
-    "uvicorn>=0.35.0",
+    "uvicorn[standard]>=0.29.0",
 ]

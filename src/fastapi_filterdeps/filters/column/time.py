@@ -8,11 +8,13 @@ from fastapi_filterdeps.core.base import SimpleFilterCriteriaBase
 class TimeMatchType(str, Enum):
     """Defines the available comparison operators for datetime fields.
 
-    Attributes:
-        GTE: Greater than or equal to (>=).
-        GT: Greater than (>).
-        LTE: Less than or equal to (<=).
-        LT: Less than (<).
+    * GTE: Greater than or equal to (>=).
+
+    * GT: Greater than (>).
+
+    * LTE: Less than or equal to (<=).
+
+    * LT: Less than (<).
     """
 
     GTE = "gte"

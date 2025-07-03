@@ -110,23 +110,21 @@ class InvalidValueError(FilterDependencyError):
     Raised when a value provided to a filter is invalid.
 
     This can occur in two scenarios:
+
     1.  **Configuration Time**: An invalid value is used when defining a filter,
         such as an incorrect enum value for a `match_type`.
     2.  **Runtime**: An invalid value is provided by an API user, such as a
         field name for ordering that is not in the allowed `whitelist`.
 
     Example:
-        Configuration Time
 
-        .. code-block:: python
+        Configuration Time::
 
             # This will raise InvalidValueError because 'contains_case_sensitive'
             # is not a valid MatchType for StringCriteria.
             invalid_filter = StringCriteria(field="username", match_type="contains_case_sensitive", value="test")
 
-        Runtime, within an endpoint
-
-        .. code-block:: python
+        Runtime, within an endpoint::
 
             # If a user requests GET /users?order_by=id,desc,password,asc
             # and 'password' is not in the whitelist, order_by_params dependency

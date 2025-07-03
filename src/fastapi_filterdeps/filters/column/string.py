@@ -9,13 +9,17 @@ class StringMatchType(str, Enum):
 
     This enum specifies the filtering strategy for the `StringCriteria` class.
 
-    Attributes:
-        CONTAINS: Case-sensitive or -insensitive partial string match (LIKE/ILIKE '%value%').
-        PREFIX: Case-sensitive or -insensitive prefix match (LIKE/ILIKE 'value%').
-        SUFFIX: Case-sensitive or -insensitive suffix match (LIKE/ILIKE '%value').
-        EXACT: Case-sensitive or -insensitive exact match.
-        NOT_EQUAL: Case-sensitive or -insensitive inequality match.
-        NOT_CONTAINS: Case-sensitive or -insensitive exclusion of a partial string.
+    * CONTAINS: Case-sensitive or -insensitive partial string match (LIKE/ILIKE '%value%').
+
+    * PREFIX: Case-sensitive or -insensitive prefix match (LIKE/ILIKE 'value%').
+
+    * SUFFIX: Case-sensitive or -insensitive suffix match (LIKE/ILIKE '%value').
+
+    * EXACT: Case-sensitive or -insensitive exact match.
+
+    * NOT_EQUAL: Case-sensitive or -insensitive inequality match.
+
+    * NOT_CONTAINS: Case-sensitive or -insensitive exclusion of a partial string.
     """
 
     CONTAINS = "contains"

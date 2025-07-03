@@ -12,15 +12,15 @@ class JsonPathOperation(str, Enum):
 
     These operations define how a value at a given JSON path is compared.
 
-    Attributes:
-        EQUALS: Direct value comparison at the specified path (`==`).
-        CONTAINS: Checks if a value is contained within a JSON object or array (`@>`).
-            This operation is primarily supported by `JsonOperatorStrategy`.
-        EXISTS: Checks if the specified path exists and its value is not JSON `null`.
-        ARRAY_ANY: Checks if any element in a JSON array matches the value (`?|`).
-            Requires `array_type=True` and is supported by `JsonOperatorStrategy`.
-        ARRAY_ALL: Checks if all elements in a JSON array match the value (`?&`).
-            Requires `array_type=True` and is supported by `JsonOperatorStrategy`.
+    * EQUALS: Direct value comparison at the specified path (`==`).
+
+    * CONTAINS: Checks if a value is contained within a JSON object or array (`@>`). This operation is primarily supported by `JsonOperatorStrategy`.
+
+    * EXISTS: Checks if the specified path exists and its value is not JSON `null`.
+
+    * ARRAY_ANY: Checks if any element in a JSON array matches the value (`?|`). Requires `array_type=True` and is supported by `JsonOperatorStrategy`.
+
+    * ARRAY_ALL: Checks if all elements in a JSON array match the value (`?&`). Requires `array_type=True` and is supported by `JsonOperatorStrategy`.
     """
 
     EQUALS = "eq"

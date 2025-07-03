@@ -18,6 +18,7 @@ class JsonDictTagsCriteria(SimpleFilterCriteriaBase):
     compatible with various database backends.
 
     Query parameters are parsed in two formats:
+
     1.  `key`: Checks for the existence of the tag key (e.g., `?tags=urgent`).
     2.  `key:value`: Checks if the tag key's value matches the specified value
         (e.g., `?tags=priority:high`).
@@ -31,25 +32,24 @@ class JsonDictTagsCriteria(SimpleFilterCriteriaBase):
         description (Optional[str]): A custom description for the OpenAPI documentation.
         **query_params: Additional keyword arguments to be passed to FastAPI's Query.
 
-    Example:
-        .. code-block:: python
+    Example::
 
-            from fastapi_filterdeps.filtersets import FilterSet
-            from fastapi_filterdeps.filters.json.tags import JsonDictTagsCriteria
-            from fastapi_filterdeps.filters.json.strategy import JsonOperatorStrategy
-            from myapp.models import BasicModel
+        from fastapi_filterdeps.filtersets import FilterSet
+        from fastapi_filterdeps.filters.json.tags import JsonDictTagsCriteria
+        from fastapi_filterdeps.filters.json.strategy import JsonOperatorStrategy
+        from myapp.models import BasicModel
 
-            class BasicModelFilterSet(FilterSet):
-                tags = JsonDictTagsCriteria(
-                    field="detail",
-                    alias="tags",
-                    strategy=JsonOperatorStrategy(),
-                )
-                class Meta:
-                    orm_model = BasicModel
+        class BasicModelFilterSet(FilterSet):
+            tags = JsonDictTagsCriteria(
+                field="detail",
+                alias="tags",
+                strategy=JsonOperatorStrategy(),
+            )
+            class Meta:
+                orm_model = BasicModel
 
-            # GET /items?tags=urgent&tags=language:en
-            # will filter for items that have BOTH the "urgent" tag AND the "language:en" tag.
+        # GET /items?tags=urgent&tags=language:en
+        # will filter for items that have BOTH the "urgent" tag AND the "language:en" tag.
     """
 
     def __init__(

@@ -9,11 +9,13 @@ class BinaryFilterType(str, Enum):
 
     This enum specifies the filtering strategy for the `BinaryCriteria` class.
 
-    Attributes:
-        IS_TRUE: Checks if a field is `True`.
-        IS_FALSE: Checks if a field is `False`.
-        IS_NONE: Checks if a field is `NULL`.
-        IS_NOT_NONE: Checks if a field is `NOT NULL`.
+    * IS_TRUE: Checks if a field is `True`.
+
+    * IS_FALSE: Checks if a field is `False`.
+
+    * IS_NONE: Checks if a field is `NULL`.
+
+    * IS_NOT_NONE: Checks if a field is `NOT NULL`.
     """
 
     IS_TRUE = "is_true"

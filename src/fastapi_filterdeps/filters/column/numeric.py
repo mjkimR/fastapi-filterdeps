@@ -9,13 +9,17 @@ class NumericFilterType(str, Enum):
 
     This enum specifies the comparison strategy for the `NumericCriteria` class.
 
-    Attributes:
-        GT: Greater than (>).
-        GTE: Greater than or equal to (>=).
-        LT: Less than (<).
-        LTE: Less than or equal to (<=).
-        EQ: Equal to (==).
-        NE: Not equal to (!=).
+    * GT: Greater than (>).
+
+    * GTE: Greater than or equal to (>=).
+
+    * LT: Less than (<).
+
+    * LTE: Less than or equal to (<=).
+
+    * EQ: Equal to (==).
+
+    * NE: Not equal to (!=).
     """
 
     GT = "gt"

@@ -11,9 +11,9 @@ from fastapi_filterdeps.core.base import SimpleFilterCriteriaBase
 class OrderType(str, Enum):
     """Specifies the ordering direction for the `OrderCriteria` filter.
 
-    Attributes:
-        MAX: Selects the record with the highest value in the ordering field.
-        MIN: Selects the record with the lowest value in the ordering field.
+    * MAX: Selects the record with the highest value in the ordering field.
+
+    * MIN: Selects the record with the lowest value in the ordering field.
     """
 
     MAX = "max"
